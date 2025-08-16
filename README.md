@@ -423,9 +423,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 - [ ] Rapor sistemi
 - [ ] Mobile API optimizasyonları
 
-## 📄 Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
 
 ## 📞 İletişim
 
