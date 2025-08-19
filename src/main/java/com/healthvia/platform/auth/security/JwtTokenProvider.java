@@ -8,6 +8,8 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
+import com.healthvia.platform.common.enums.UserRole;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -72,6 +74,40 @@ public class JwtTokenProvider {
                 .getBody();
         
         return claims.getSubject();
+    }
+    
+    // ✅ YENİ - Role extraction metodu
+    public UserRole getRoleFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        
+        String roleString = claims.get("role", String.class);
+        return UserRole.valueOf(roleString);
+    }
+    
+    // ✅ YENİ - Email extraction metodu
+    public String getEmailFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        
+        return claims.get("email", String.class);
+    }
+    
+    // ✅ YENİ - Full name extraction metodu
+    public String getFullNameFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        
+        return claims.get("fullName", String.class);
     }
     
     public boolean validateToken(String token) {
