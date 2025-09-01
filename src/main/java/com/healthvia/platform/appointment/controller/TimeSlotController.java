@@ -148,7 +148,6 @@ public class TimeSlotController {
     }
 
     @PatchMapping("/{id}/unblock")
-    //@PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     public ApiResponse<TimeSlot> unblockSlot(@PathVariable String id) {
         
         log.info("Unblocking slot: {}", id);
@@ -172,7 +171,6 @@ public class TimeSlotController {
     }
 
     @PostMapping("/cleanup-expired")
-    //@PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> cleanupExpiredSlots() {
         log.info("Cleaning up expired slots");
         
