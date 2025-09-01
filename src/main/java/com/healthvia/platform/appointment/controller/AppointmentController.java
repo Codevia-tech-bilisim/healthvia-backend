@@ -19,6 +19,7 @@ import com.healthvia.platform.appointment.entity.Appointment;
 import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
 import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.common.dto.ApiResponse;
+import com.healthvia.platform.common.util.ValidationUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,8 @@ public class AppointmentController {
         
         log.info("Patient {} creating appointment with doctor {}", patientId, doctorId);
 
+        String sanitizedComplaint = ValidationUtils.sanitizeChiefComplaint(chiefComplaint);
+        
         Appointment appointment = appointmentService.bookAppointment(
             patientId,
             doctorId,

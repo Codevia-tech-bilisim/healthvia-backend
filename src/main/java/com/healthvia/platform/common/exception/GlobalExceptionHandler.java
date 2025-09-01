@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.healthvia.platform.appointment.exception.AppointmentExceptions;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -180,29 +181,29 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
-            ConstraintViolationException ex) {
-        
-        Map<String, String> errors = new HashMap<>();
-        ex.getConstraintViolations().forEach(violation -> {
-            String propertyPath = violation.getPropertyPath().toString();
-            String message = violation.getMessage();
-            errors.put(propertyPath, message);
-        });
-        
-        log.error("Constraint violation: {}", errors);
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .code("CONSTRAINT_VIOLATION")
-            .message("Kısıtlama ihlali")
-            .details(errors)
-            .timestamp(LocalDateTime.now())
-            .build();
-        
-        return ResponseEntity
-            .status(HttpStatus.BAD_REQUEST)
-            .body(ApiResponse.error(error));
-    }
+public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
+        ConstraintViolationException ex) {
+    
+    Map<String, String> errors = new HashMap<>();
+    ex.getConstraintViolations().forEach(violation -> {
+        String propertyPath = violation.getPropertyPath().toString();
+        String message = violation.getMessage();
+        errors.put(propertyPath, message);
+    });
+    
+    log.error("Constraint violation: {}", errors);
+    
+    ErrorResponse error = ErrorResponse.builder()
+        .code("CONSTRAINT_VIOLATION")
+        .message("Kısıtlama ihlali")
+        .details(errors) // <-- Burada String değil Map gönderiyoruz
+        .timestamp(LocalDateTime.now())
+        .build();
+    
+    return ResponseEntity
+        .status(HttpStatus.BAD_REQUEST)
+        .body(ApiResponse.error(error));
+}
     
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGlobalException(
@@ -221,4 +222,18 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(error));
     }
+
+//    @ExceptionHandler(AppointmentExceptions.CancellationDeadlineException.class)
+//    public ResponseEntity<ErrorResponse> handleCancellationDeadline(
+//            AppointmentExceptions.CancellationDeadlineException ex) {
+//
+//        ErrorResponse response = ErrorResponse.builder()
+//                .code(ex.getErrorCode().name())
+//                .message(ex.getDetails().get("message").toString())  // özel mesajı alıyoruz
+//                .details(ex.getDetails().toString())
+//                .timestamp(LocalDateTime.now())
+//                .build();
+//
+//        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+//    }
 }
