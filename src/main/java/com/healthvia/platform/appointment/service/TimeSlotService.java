@@ -1,6 +1,7 @@
 package com.healthvia.platform.appointment.service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,7 +15,7 @@ public interface TimeSlotService {
     /**
      * Slot oluştur
      */
-    TimeSlot createSlot(TimeSlot slot);
+    TimeSlot createSlot(String doctorId, LocalDate date, LocalTime startTime, LocalTime endTime, Integer durationMinutes);
     
     /**
      * Slot güncelle

@@ -1,6 +1,6 @@
 // common/constants/ErrorCodes.java
 package com.healthvia.platform.common.constants;
-
+//
 public enum ErrorCodes {
     // Authentication Errors (1000-1099)
     INVALID_CREDENTIALS("ERR_1000", "Geçersiz kullanıcı adı veya şifre"),
@@ -21,6 +21,7 @@ public enum ErrorCodes {
     INVALID_APPOINTMENT_DATE("ERR_2002", "Geçersiz randevu tarihi"),
     PAYMENT_FAILED("ERR_2003", "Ödeme başarısız"),
     INSUFFICIENT_BALANCE("ERR_2004", "Yetersiz bakiye"),
+    CANCELLATION_DEADLINE_PASSED("ERR_2005", "Randevu iptal süresi aşılmış"),
     
     // Integration Errors (3000-3099)
     ZOOM_API_ERROR("ERR_3000", "Zoom API hatası"),

@@ -2,6 +2,7 @@ package com.healthvia.platform.appointment.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.healthvia.platform.appointment.entity.Appointment;
 import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
+import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
+import com.healthvia.platform.appointment.exception.AppointmentExceptions;
 import com.healthvia.platform.appointment.entity.TimeSlot;
 import com.healthvia.platform.appointment.repository.AppointmentRepository;
 import com.healthvia.platform.appointment.service.AppointmentService;
@@ -33,16 +36,46 @@ public class AppointmentServiceImpl implements AppointmentService {
     // === TEMEL CRUD İŞLEMLERİ ===
 
     @Override
-    public Appointment createAppointment(Appointment appointment) {
-        log.info("Creating new appointment for patient: {} with doctor: {}", 
-                appointment.getPatientId(), appointment.getDoctorId());
+    public Appointment createAppointment(String patientId, String doctorId, 
+                                        String slotId, String chiefComplaint) {
         
-        validateAppointment(appointment);
+        // Slot kontrolü
+        TimeSlot slot = timeSlotService.findById(slotId)
+                .orElseThrow(() -> new ResourceNotFoundException("Slot bulunamadı: " + slotId));
+        
+        // Geçmiş tarih kontrolü
+        LocalDate appointmentDate = slot.getDate();
+        if (appointmentDate.isBefore(LocalDate.now())) {
+            throw new AppointmentExceptions.PastDateAppointmentException();
+        }
+        
+        // Slot müsaitlik kontrolü
+        if (!slot.isAvailable()) {
+            if (slot.getStatus() == SlotStatus.BOOKED) {
+                throw new AppointmentExceptions.SlotAlreadyBookedException(slotId);
+            } else {
+                throw new AppointmentExceptions.SlotNotAvailableException(slotId);
+            }
+        }
+
+        // Appointment nesnesi oluştur
+        Appointment appointment = new Appointment();
+        appointment.setPatientId(patientId);
+        appointment.setDoctorId(doctorId);
+        appointment.setChiefComplaint(chiefComplaint);
         appointment.setStatus(AppointmentStatus.PENDING);
         appointment.setStatusChangedAt(LocalDateTime.now());
-        
+
+        log.info("Creating new appointment for patient: {} with doctor: {}", 
+                    patientId, doctorId);
+
+        // Validasyon
+        validateAppointment(appointment);
+
         return appointmentRepository.save(appointment);
     }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -152,20 +185,39 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentRepository.save(appointment);
     }
 
+
     @Override
     public Appointment cancelAppointment(String appointmentId, String cancelledBy, String reason) {
-        log.info("Cancelling appointment: {} by: {}", appointmentId, cancelledBy);
-
+        // Randevuyu al
         Appointment appointment = findByIdOrThrow(appointmentId);
         
+        // 24 saat kontrolü
+        LocalDateTime appointmentDateTime = LocalDateTime.of(
+            appointment.getAppointmentDate(), 
+            appointment.getStartTime()
+        );
+        
+        long hoursUntilAppointment = ChronoUnit.HOURS.between(LocalDateTime.now(), appointmentDateTime);
+        if (hoursUntilAppointment < 24) {
+            throw new AppointmentExceptions.CancellationDeadlineException(hoursUntilAppointment);
+        }
+
+        log.info("Cancelling appointment: {} by: {}", appointmentId, cancelledBy);
+
+        // Entity içi iptal kontrolü
         if (!appointment.canBeCancelled()) {
             throw new RuntimeException("Bu randevu iptal edilemez");
         }
 
+        // İptal işlemi
         appointment.cancel(cancelledBy, reason);
-        
+
+        // Kaydet ve geri dön
         return appointmentRepository.save(appointment);
     }
+
+
+    
 
     @Override
     public Appointment checkInPatient(String appointmentId) {

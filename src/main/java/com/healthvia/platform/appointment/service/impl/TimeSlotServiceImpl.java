@@ -29,10 +29,18 @@ public class TimeSlotServiceImpl implements TimeSlotService {
 
     // === TEMEL CRUD İŞLEMLERİ ===
 
-    @Override
-    public TimeSlot createSlot(TimeSlot slot) {
-        return timeSlotRepository.save(slot);
-    }
+    public TimeSlot createSlot(String doctorId, LocalDate date, LocalTime startTime, 
+                           LocalTime endTime, Integer durationMinutes) {
+    return TimeSlot.builder()
+        .doctorId(doctorId)
+        .date(date)
+        .startTime(startTime)
+        .endTime(endTime)
+        .durationMinutes(durationMinutes)
+        .status(SlotStatus.AVAILABLE)
+        .isRecurring(false)
+        .build();
+}
 
     @Override
     @Transactional(readOnly = true)
@@ -68,41 +76,48 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     public List<TimeSlot> generateSlotsForDay(String doctorId, LocalDate date, Integer durationMinutes) {
         log.info("Generating slots for doctor: {} on date: {} with duration: {}", 
                 doctorId, date, durationMinutes);
-
+    
         // Mevcut slotları kontrol et
         List<TimeSlot> existingSlots = timeSlotRepository.findByDoctorIdAndDateAndDeletedFalse(doctorId, date);
         if (!existingSlots.isEmpty()) {
             log.warn("Slots already exist for doctor {} on date {}", doctorId, date);
             return existingSlots;
         }
-
-        // Basit slot oluşturma - 09:00'dan 17:00'a kadar
+    
+        // Doktor çalışma saatlerini al (gelecekte doktor entity'sinden gelecek)
+        LocalTime workStart = LocalTime.of(9, 0);   // 09:00
+        LocalTime workEnd = LocalTime.of(17, 0);    // 17:00
+        LocalTime lunchStart = LocalTime.of(12, 0); // 12:00 - öğle molası başlangıcı
+        LocalTime lunchEnd = LocalTime.of(13, 0);   // 13:00 - öğle molası bitişi
+        
         List<TimeSlot> slots = new ArrayList<>();
-        LocalTime currentTime = LocalTime.of(9, 0); // 09:00
-        LocalTime endTime = LocalTime.of(17, 0);    // 17:00
-
-        while (currentTime.plusMinutes(durationMinutes).isBefore(endTime) || 
-               currentTime.plusMinutes(durationMinutes).equals(endTime)) {
+        
+        // Sabah slotları (09:00 - 12:00)
+        LocalTime currentTime = workStart;
+        while (currentTime.plusMinutes(durationMinutes).isBefore(lunchStart) || 
+               currentTime.plusMinutes(durationMinutes).equals(lunchStart)) {
             
             LocalTime slotEnd = currentTime.plusMinutes(durationMinutes);
-            
-            TimeSlot slot = TimeSlot.builder()
-                .doctorId(doctorId)
-                .date(date)
-                .startTime(currentTime)
-                .endTime(slotEnd)
-                .durationMinutes(durationMinutes)
-                .status(SlotStatus.AVAILABLE)
-                .isRecurring(false)
-                .build();
-            
-            slots.add(slot);
+            slots.add(createSlot(doctorId, date, currentTime, slotEnd, durationMinutes));
             currentTime = currentTime.plusMinutes(durationMinutes + 5); // 5 dk buffer
         }
-
+        
+        // Öğleden sonra slotları (13:00 - 17:00)
+        currentTime = lunchEnd;
+        while (currentTime.plusMinutes(durationMinutes).isBefore(workEnd) || 
+               currentTime.plusMinutes(durationMinutes).equals(workEnd)) {
+            
+            LocalTime slotEnd = currentTime.plusMinutes(durationMinutes);
+            slots.add(createSlot(doctorId, date, currentTime, slotEnd, durationMinutes));
+            currentTime = currentTime.plusMinutes(durationMinutes + 5); // 5 dk buffer
+        }
+    
         // Slotları kaydet
         List<TimeSlot> savedSlots = timeSlotRepository.saveAll(slots);
-        log.info("Generated {} slots for doctor {} on {}", savedSlots.size(), doctorId, date);
+        log.info("Generated {} slots for doctor {} on {} (morning: {}, afternoon: {})", 
+                savedSlots.size(), doctorId, date, 
+                savedSlots.stream().filter(s -> s.getStartTime().isBefore(lunchStart)).count(),
+                savedSlots.stream().filter(s -> s.getStartTime().isAfter(lunchStart)).count());
         
         return savedSlots;
     }

@@ -39,7 +39,7 @@ public class RegisterRequest {
     
     @NotBlank(message = "Şifre boş olamaz")
     @Size(min = 8, message = "Şifre en az 8 karakter olmalıdır")
-    @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=]).*$", 
+    @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=.!]).*$", 
              message = "Şifre büyük harf, küçük harf, rakam ve özel karakter içermelidir")
     private String password;
     
