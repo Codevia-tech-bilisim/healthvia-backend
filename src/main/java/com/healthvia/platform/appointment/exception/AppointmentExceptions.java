@@ -1,12 +1,10 @@
-
 // src/main/java/com/healthvia/platform/appointment/exception/AppointmentExceptions.java
 package com.healthvia.platform.appointment.exception;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.healthvia.platform.common.constants.ErrorCodes;
 import com.healthvia.platform.common.exception.BusinessException;
+
+import java.util.Map;
 
 public final class AppointmentExceptions {
 
@@ -18,8 +16,8 @@ public final class AppointmentExceptions {
         public SlotNotAvailableException(String slotId) {
             super(
                 ErrorCodes.APPOINTMENT_NOT_AVAILABLE,
-                "Bu zaman dilimi artık müsait değil. Lütfen başka bir zaman seçin.",
-                createDetails("slotId", slotId)
+                Map.of("slotId", slotId,
+                       "message", "Bu zaman dilimi artık müsait değil. Lütfen başka bir zaman seçin.")
             );
         }
     }
@@ -28,7 +26,7 @@ public final class AppointmentExceptions {
         public PastDateAppointmentException() {
             super(
                 ErrorCodes.INVALID_APPOINTMENT_DATE,
-                "Geçmiş tarihli randevu oluşturulamaz"
+                Map.of("message", "Geçmiş tarihli randevu oluşturulamaz")
             );
         }
     }
@@ -37,8 +35,8 @@ public final class AppointmentExceptions {
         public SlotAlreadyBookedException(String slotId) {
             super(
                 ErrorCodes.APPOINTMENT_ALREADY_BOOKED,
-                "Bu zaman dilimi zaten rezerve edilmiş",
-                createDetails("slotId", slotId)
+                Map.of("slotId", slotId,
+                       "message", "Bu zaman dilimi zaten rezerve edilmiş")
             );
         }
     }
@@ -47,16 +45,11 @@ public final class AppointmentExceptions {
         public CancellationDeadlineException(long hoursLeft) {
             super(
                 ErrorCodes.CANCELLATION_DEADLINE_PASSED,
-                String.format("Randevu iptal edilemez. Randevuya %d saat kaldı. En az 24 saat öncesinden iptal edilmelidir.", hoursLeft),
-                createDetails("hoursLeft", String.valueOf(hoursLeft))
+                Map.of(
+                    "hoursLeft", String.valueOf(hoursLeft),
+                    "message", String.format("Randevu iptal edilemez. Randevuya %d saat kaldı. En az 24 saat öncesinden iptal edilmelidir.", hoursLeft)
+                )
             );
         }
     }
-    
-    // Utility method for creating details map
-    private static Map<String, String> createDetails(String key, String value) {
-        Map<String, String> details = new HashMap<>();
-        details.put(key, value);
-        return details;
-    }
-
+}
