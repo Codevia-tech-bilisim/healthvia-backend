@@ -47,7 +47,7 @@ public class BusinessException extends RuntimeException {
     @Override
     public String getMessage() {
         if (details != null && details.containsKey("message")) {
-            return details.get("message").toString();
+            return details.get("message");
         }
         return super.getMessage();
     }
