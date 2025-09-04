@@ -5,20 +5,22 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.healthvia.platform.appointment.exception.AppointmentExceptions;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import com.healthvia.platform.appointment.exception.AppointmentExceptions;
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.dto.ErrorResponse;
 
@@ -29,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GlobalExceptionHandler {
     
+    // === BUSINESS EXCEPTION HANDLERS ===
+    
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(
             BusinessException ex, WebRequest request) {
@@ -38,6 +42,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error = ErrorResponse.builder()
             .code(ex.getErrorCode().getCode())
             .message(ex.getMessage())
+            .details(ex.getDetails())
             .timestamp(LocalDateTime.now())
             .path(request.getDescription(false).replace("uri=", ""))
             .build();
@@ -65,12 +70,91 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(error));
     }
     
+    // === APPOINTMENT SPECIFIC EXCEPTION HANDLERS ===
+    
+    @ExceptionHandler(AppointmentExceptions.CancellationDeadlineException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCancellationDeadline(
+            AppointmentExceptions.CancellationDeadlineException ex, WebRequest request) {
+        
+        log.error("Cancellation deadline exception: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code(ex.getErrorCode().getCode())
+            .message(ex.getMessage())
+            .details(ex.getDetails())
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
+    
+    @ExceptionHandler(AppointmentExceptions.SlotNotAvailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSlotNotAvailable(
+            AppointmentExceptions.SlotNotAvailableException ex, WebRequest request) {
+        
+        log.error("Slot not available: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code(ex.getErrorCode().getCode())
+            .message(ex.getMessage())
+            .details(ex.getDetails())
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
+    
+    @ExceptionHandler(AppointmentExceptions.SlotAlreadyBookedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSlotAlreadyBooked(
+            AppointmentExceptions.SlotAlreadyBookedException ex, WebRequest request) {
+        
+        log.error("Slot already booked: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code(ex.getErrorCode().getCode())
+            .message(ex.getMessage())
+            .details(ex.getDetails())
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
+    
+    @ExceptionHandler(AppointmentExceptions.PastDateAppointmentException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePastDateAppointment(
+            AppointmentExceptions.PastDateAppointmentException ex, WebRequest request) {
+        
+        log.error("Past date appointment: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code(ex.getErrorCode().getCode())
+            .message(ex.getMessage())
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
+    
+    // === VALIDATION EXCEPTION HANDLERS ===
+    
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex) {
         
         Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
@@ -80,7 +164,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse error = ErrorResponse.builder()
             .code("VALIDATION_ERROR")
-            .message("Validation hatası")
+            .message("Validasyon hatası")
             .details(errors)
             .timestamp(LocalDateTime.now())
             .build();
@@ -89,6 +173,33 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.BAD_REQUEST)
             .body(ApiResponse.error(error));
     }
+    
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
+            ConstraintViolationException ex) {
+        
+        Map<String, String> errors = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation -> {
+            String propertyPath = violation.getPropertyPath().toString();
+            String message = violation.getMessage();
+            errors.put(propertyPath, message);
+        });
+        
+        log.error("Constraint violation: {}", errors);
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("CONSTRAINT_VIOLATION")
+            .message("Kısıtlama ihlali")
+            .details(errors)
+            .timestamp(LocalDateTime.now())
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
+    
+    // === SECURITY EXCEPTION HANDLERS ===
     
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(
@@ -141,22 +252,7 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(error));
     }
     
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
-            MaxUploadSizeExceededException ex) {
-        
-        log.error("File size exceeded: {}", ex.getMessage());
-        
-        ErrorResponse error = ErrorResponse.builder()
-            .code("FILE_SIZE_EXCEEDED")
-            .message("Dosya boyutu çok büyük. Maksimum 10MB yükleyebilirsiniz.")
-            .timestamp(LocalDateTime.now())
-            .build();
-        
-        return ResponseEntity
-            .status(HttpStatus.BAD_REQUEST)
-            .body(ApiResponse.error(error));
-    }
+    // === DATA EXCEPTION HANDLERS ===
     
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(
@@ -180,30 +276,60 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(error));
     }
     
-    @ExceptionHandler(ConstraintViolationException.class)
-public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
-        ConstraintViolationException ex) {
+    // === HTTP EXCEPTION HANDLERS ===
     
-    Map<String, String> errors = new HashMap<>();
-    ex.getConstraintViolations().forEach(violation -> {
-        String propertyPath = violation.getPropertyPath().toString();
-        String message = violation.getMessage();
-        errors.put(propertyPath, message);
-    });
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException ex, WebRequest request) {
+        
+        log.error("JSON parse error: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("INVALID_JSON")
+            .message("Geçersiz JSON formatı veya veri tipi hatası")
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
     
-    log.error("Constraint violation: {}", errors);
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParams(
+            MissingServletRequestParameterException ex, WebRequest request) {
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("MISSING_PARAMETER")
+            .message("Eksik parametre: " + ex.getParameterName())
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
     
-    ErrorResponse error = ErrorResponse.builder()
-        .code("CONSTRAINT_VIOLATION")
-        .message("Kısıtlama ihlali")
-        .details(errors) // <-- Burada String değil Map gönderiyoruz
-        .timestamp(LocalDateTime.now())
-        .build();
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex) {
+        
+        log.error("File size exceeded: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("FILE_SIZE_EXCEEDED")
+            .message("Dosya boyutu çok büyük. Maksimum 10MB yükleyebilirsiniz.")
+            .timestamp(LocalDateTime.now())
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
     
-    return ResponseEntity
-        .status(HttpStatus.BAD_REQUEST)
-        .body(ApiResponse.error(error));
-}
+    // === GENERIC EXCEPTION HANDLER ===
     
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGlobalException(
@@ -222,18 +348,4 @@ public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(error));
     }
-
-//    @ExceptionHandler(AppointmentExceptions.CancellationDeadlineException.class)
-//    public ResponseEntity<ErrorResponse> handleCancellationDeadline(
-//            AppointmentExceptions.CancellationDeadlineException ex) {
-//
-//        ErrorResponse response = ErrorResponse.builder()
-//                .code(ex.getErrorCode().name())
-//                .message(ex.getDetails().get("message").toString())  // özel mesajı alıyoruz
-//                .details(ex.getDetails().toString())
-//                .timestamp(LocalDateTime.now())
-//                .build();
-//
-//        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
-//    }
 }
