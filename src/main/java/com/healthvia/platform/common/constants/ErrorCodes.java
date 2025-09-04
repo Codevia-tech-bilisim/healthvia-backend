@@ -1,6 +1,6 @@
 // common/constants/ErrorCodes.java
 package com.healthvia.platform.common.constants;
-
+//
 public enum ErrorCodes {
     // Authentication Errors (1000-1099)
     INVALID_CREDENTIALS("ERR_1000", "Geçersiz kullanıcı adı veya şifre"),

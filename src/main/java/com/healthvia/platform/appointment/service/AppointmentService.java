@@ -18,8 +18,7 @@ public interface AppointmentService {
     /**
      * Randevu oluştur
      */
-    Appointment createAppointment(Appointment appointment);
-    
+    Appointment createAppointment(String patientId, String doctorId, String slotId, String chiefComplaint);
     /**
      * Randevu güncelle
      */
@@ -56,8 +55,7 @@ public interface AppointmentService {
     /**
      * Randevuyu iptal et
      */
-    Appointment cancelAppointment(String appointmentId, String cancelledBy, String reason);
-    
+    Appointment cancelAppointment(String appointmentId, String cancelledBy, String reason);    
     /**
      * Randevuyu ertele
      */

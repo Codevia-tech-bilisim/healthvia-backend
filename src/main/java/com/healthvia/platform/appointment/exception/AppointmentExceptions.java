@@ -1,3 +1,4 @@
+
 // src/main/java/com/healthvia/platform/appointment/exception/AppointmentExceptions.java
 package com.healthvia.platform.appointment.exception;
 
@@ -58,4 +59,4 @@ public final class AppointmentExceptions {
         details.put(key, value);
         return details;
     }
-}
+
