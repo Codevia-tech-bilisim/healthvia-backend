@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.healthvia.platform.appointment.exception.AppointmentExceptions;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -196,7 +195,7 @@ public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
     ErrorResponse error = ErrorResponse.builder()
         .code("CONSTRAINT_VIOLATION")
         .message("Kısıtlama ihlali")
-        .details(errors) // <-- Burada String değil Map gönderiyoruz
+        .details(errors) 
         .timestamp(LocalDateTime.now())
         .build();
     
@@ -221,6 +220,38 @@ public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(error));
+    }
+
+    @ExceptionHandler(AppointmentExceptions.SlotAlreadyBookedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSlotAlreadyBookedException(
+        AppointmentExceptions.SlotAlreadyBookedException ex, WebRequest request) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .code("SLOT_ALREADY_BOOKED")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT) // 409
+                .body(ApiResponse.error(error));
+    }
+
+    @ExceptionHandler(AppointmentExceptions.PastDateAppointmentException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePastDateAppointmentException(
+            AppointmentExceptions.PastDateAppointmentException ex, WebRequest request) {
+
+        ErrorResponse error = ErrorResponse.builder()
+                .code("PAST_DATE_APPOINTMENT")
+                .message("Geçmiş tarihler için randevu oluşturamazsınız")
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST) // 400
+                .body(ApiResponse.error(error));
     }
 
 //    @ExceptionHandler(AppointmentExceptions.CancellationDeadlineException.class)

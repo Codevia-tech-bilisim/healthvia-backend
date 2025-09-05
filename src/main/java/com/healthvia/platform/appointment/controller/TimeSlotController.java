@@ -58,7 +58,7 @@ public class TimeSlotController {
     // === DOCTOR ENDPOINTS (Doktorlar için slot yönetimi) ===
 
     @PostMapping("/generate")
-    //@PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<List<TimeSlot>> generateSlots(
             @RequestParam String doctorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -78,7 +78,7 @@ public class TimeSlotController {
     }
 
     @PostMapping("/generate/week")
-    //@PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<List<TimeSlot>> generateWeeklySlots(
             @RequestParam String doctorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -97,7 +97,7 @@ public class TimeSlotController {
     }
 
     @PostMapping("/generate/month")
-    //@PreAuthorize("hasRole('DOCTOR')")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<List<TimeSlot>> generateMonthlySlots(
             @RequestParam String doctorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -116,7 +116,7 @@ public class TimeSlotController {
     }
 
     @GetMapping("/doctor/{doctorId}")
-    //@PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     public ApiResponse<List<TimeSlot>> getDoctorSlots(
             @PathVariable String doctorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -135,7 +135,7 @@ public class TimeSlotController {
     }
 
     @PatchMapping("/{id}/block")
-    //@PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     public ApiResponse<TimeSlot> blockSlot(
             @PathVariable String id,
             @RequestParam String reason,
@@ -160,7 +160,7 @@ public class TimeSlotController {
     // === ADMIN ENDPOINTS (Admin için slot yönetimi) ===
 
     @DeleteMapping("/{id}")
-    //@PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> deleteSlot(
             @PathVariable String id,
             @RequestParam String deletedBy) {

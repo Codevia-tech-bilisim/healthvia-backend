@@ -30,17 +30,17 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     // === TEMEL CRUD İŞLEMLERİ ===
 
     public TimeSlot createSlot(String doctorId, LocalDate date, LocalTime startTime, 
-                           LocalTime endTime, Integer durationMinutes) {
-    return TimeSlot.builder()
-        .doctorId(doctorId)
-        .date(date)
-        .startTime(startTime)
-        .endTime(endTime)
-        .durationMinutes(durationMinutes)
-        .status(SlotStatus.AVAILABLE)
-        .isRecurring(false)
-        .build();
-}
+                               LocalTime endTime, Integer durationMinutes) {
+        return TimeSlot.builder()
+            .doctorId(doctorId)
+            .date(date)
+            .startTime(startTime)
+            .endTime(endTime)
+            .durationMinutes(durationMinutes)
+            .status(SlotStatus.AVAILABLE)
+            .isRecurring(false)
+            .build();
+    }
 
     @Override
     @Transactional(readOnly = true)

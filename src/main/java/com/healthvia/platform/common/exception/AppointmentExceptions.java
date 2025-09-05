@@ -1,7 +1,6 @@
-package com.healthvia.platform.appointment.exception;
+package com.healthvia.platform.common.exception;
 
 import com.healthvia.platform.common.constants.ErrorCodes;
-import com.healthvia.platform.common.exception.BusinessException;
 
 import java.util.Map;
 

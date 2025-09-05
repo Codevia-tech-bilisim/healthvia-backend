@@ -94,10 +94,22 @@ public class TimeSlot extends BaseEntity {
     }
 
     // === HELPER METHODS ===
+
+
     public boolean isAvailable() {
-        return status.equals(SlotStatus.AVAILABLE) && 
-               date.atTime(startTime).isAfter(LocalDateTime.now());
+        // Sadece AVAILABLE status’teki ve gelecekteki slotlar müsait kabul edilir
+        if (status != SlotStatus.AVAILABLE) {
+            return false; // booked veya blocked ise false
+        }
+        
+        LocalDateTime slotStart = LocalDateTime.of(date, startTime);
+        return slotStart.isAfter(LocalDateTime.now());
     }
+
+    //public boolean isAvailable() {
+    //    return status.equals(SlotStatus.AVAILABLE) && 
+    //           date.atTime(startTime).isAfter(LocalDateTime.now());
+    //}
 
     public boolean isPast() {
         return date.atTime(endTime).isBefore(LocalDateTime.now());

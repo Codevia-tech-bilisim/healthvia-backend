@@ -14,12 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.healthvia.platform.appointment.entity.Appointment;
 import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
 import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
-import com.healthvia.platform.appointment.exception.AppointmentExceptions;
 import com.healthvia.platform.appointment.entity.TimeSlot;
 import com.healthvia.platform.appointment.repository.AppointmentRepository;
+import com.healthvia.platform.appointment.repository.TimeSlotRepository;
 import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.appointment.service.TimeSlotService;
+import com.healthvia.platform.common.exception.AppointmentExceptions;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.common.exception.AppointmentExceptions.SlotAlreadyBookedException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,10 +55,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (!slot.isAvailable()) {
             if (slot.getStatus() == SlotStatus.BOOKED) {
                 throw new AppointmentExceptions.SlotAlreadyBookedException(slotId);
-            } else {
+            } 
+            else if (slot.getDate().isBefore(LocalDate.now())) {
+                throw new AppointmentExceptions.PastDateAppointmentException();
+            }
+            else {
                 throw new AppointmentExceptions.SlotNotAvailableException(slotId);
             }
-        }
+        } 
 
         // Appointment nesnesi oluştur
         Appointment appointment = new Appointment();
@@ -65,6 +71,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setChiefComplaint(chiefComplaint);
         appointment.setStatus(AppointmentStatus.PENDING);
         appointment.setStatusChangedAt(LocalDateTime.now());
+
+        // Slot’u BOOKED yap ve kaydet
+        slot.setStatus(SlotStatus.BOOKED);
+        timeSlotService.updateSlot(slot.getId(), slot); 
 
         log.info("Creating new appointment for patient: {} with doctor: {}", 
                     patientId, doctorId);
@@ -126,9 +136,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         TimeSlot slot = timeSlotService.findById(slotId)
             .orElseThrow(() -> new ResourceNotFoundException("Slot bulunamadı: " + slotId));
 
-        if (!slot.isAvailable()) {
-            throw new RuntimeException("Bu zaman dilimi artık müsait değil");
-        }
 
         if (!slot.getDoctorId().equals(doctorId)) {
             throw new RuntimeException("Bu slot belirtilen doktora ait değil");
@@ -137,9 +144,21 @@ public class AppointmentServiceImpl implements AppointmentService {
         // 2. Çakışma kontrolü
         LocalDateTime startDateTime = slot.getDate().atTime(slot.getStartTime());
         LocalDateTime endDateTime = slot.getDate().atTime(slot.getEndTime());
-        
-        if (hasConflictingAppointment(doctorId, slot.getDate(), startDateTime, endDateTime)) {
-            throw new RuntimeException("Bu zaman diliminde başka bir randevu var");
+
+        LocalDateTime slotDateTime = slot.getDate().atTime(slot.getStartTime());
+        if (slotDateTime.isBefore(LocalDateTime.now())) {
+            throw new AppointmentExceptions.PastDateAppointmentException();
+        }
+
+        // Slot müsaitlik kontrolü
+        if (!slot.isAvailable()) {
+            if (slot.getStatus() == SlotStatus.BOOKED) {
+                // Slot zaten rezerve edilmiş
+                throw new AppointmentExceptions.SlotAlreadyBookedException(slot.getId());
+            } else {
+                // Slot başka bir nedenle kullanılamıyor
+                throw new AppointmentExceptions.SlotNotAvailableException(slot.getId());
+            }
         }
 
         // 3. Randevu oluştur
