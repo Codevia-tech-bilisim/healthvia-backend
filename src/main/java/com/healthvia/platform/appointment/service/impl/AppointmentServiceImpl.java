@@ -16,12 +16,10 @@ import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
 import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
 import com.healthvia.platform.appointment.entity.TimeSlot;
 import com.healthvia.platform.appointment.repository.AppointmentRepository;
-import com.healthvia.platform.appointment.repository.TimeSlotRepository;
 import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.appointment.service.TimeSlotService;
 import com.healthvia.platform.common.exception.AppointmentExceptions;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
-import com.healthvia.platform.common.exception.AppointmentExceptions.SlotAlreadyBookedException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,9 +53,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (!slot.isAvailable()) {
             if (slot.getStatus() == SlotStatus.BOOKED) {
                 throw new AppointmentExceptions.SlotAlreadyBookedException(slotId);
-            } 
-            else if (slot.getDate().isBefore(LocalDate.now())) {
-                throw new AppointmentExceptions.PastDateAppointmentException();
             }
             else {
                 throw new AppointmentExceptions.SlotNotAvailableException(slotId);
