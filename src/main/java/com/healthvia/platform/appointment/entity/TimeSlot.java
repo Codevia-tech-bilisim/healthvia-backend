@@ -97,7 +97,7 @@ public class TimeSlot extends BaseEntity {
 
 
     public boolean isAvailable() {
-        // Sadece AVAILABLE status’teki ve gelecekteki slotlar müsait kabul edilir
+        // Sadece AVAILABLE status’teki ve gelecekteki slotlar müsait kabul edilir.
         if (status != SlotStatus.AVAILABLE) {
             return false; // booked veya blocked ise false
         }
