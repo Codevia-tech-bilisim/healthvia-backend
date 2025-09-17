@@ -8,11 +8,13 @@ import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -64,6 +66,8 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(error));
     }
     
+
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
             MethodArgumentNotValidException ex) {
@@ -139,6 +143,43 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.UNAUTHORIZED)
             .body(ApiResponse.error(error));
     }
+
+
+    // === HTTP EXCEPTION HANDLERS ===
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException ex, WebRequest request) {
+        
+        log.error("JSON parse error: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("INVALID_JSON")
+            .message("Geçersiz JSON formatı veya veri tipi hatası")
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParams(
+            MissingServletRequestParameterException ex, WebRequest request) {
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("MISSING_PARAMETER")
+            .message("Eksik parametre: " + ex.getParameterName())
+            .timestamp(LocalDateTime.now())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
     
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
@@ -178,9 +219,34 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.CONFLICT)
             .body(ApiResponse.error(error));
     }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex) {
+        
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        log.error("Validation error: {}", errors);
+        
+        ErrorResponse error = ErrorResponse.builder()
+            .code("VALIDATION_ERROR")
+            .message("Validasyon hatası")
+            .details(errors)
+            .timestamp(LocalDateTime.now())
+            .build();
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(error));
+    }
     
     @ExceptionHandler(ConstraintViolationException.class)
-public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
         ConstraintViolationException ex) {
     
     Map<String, String> errors = new HashMap<>();
