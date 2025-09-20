@@ -4,6 +4,7 @@ package com.healthvia.platform.auth.dto;
 import java.time.LocalDate;
 
 import com.healthvia.platform.common.enums.UserRole;
+import com.healthvia.platform.common.validation.ValidTcKimlikNo;
 import com.healthvia.platform.user.entity.User;
 
 import jakarta.validation.constraints.Email;
@@ -55,6 +56,7 @@ public class RegisterRequest {
     private Boolean gdprConsent;
     
     // Patient için ek alanlar
+    @ValidTcKimlikNo(allowNull = true, message = "Geçerli bir TC Kimlik No giriniz")
     private String tcKimlikNo;
     private String passportNo;
     @NotBlank(message = "Doğum yeri boş olamaz")

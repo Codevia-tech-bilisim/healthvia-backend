@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.util.SecurityUtils;
+import com.healthvia.platform.common.util.TcKimlikNoValidator;
 import com.healthvia.platform.user.entity.Patient;
 import com.healthvia.platform.user.entity.User;
 import com.healthvia.platform.user.service.PatientService;
@@ -347,8 +348,19 @@ public class PatientController {
     
     @GetMapping("/validate-tc-kimlik")
     public ApiResponse<Boolean> validateTcKimlik(@RequestParam String tcKimlikNo) {
-        boolean valid = patientService.isValidTcKimlikNo(tcKimlikNo);
-        return ApiResponse.success(valid);
+        boolean valid = TcKimlikNoValidator.isValid(tcKimlikNo);
+        String message = valid ? "TC Kimlik No geçerli" : "TC Kimlik No geçersiz";
+        return ApiResponse.success(valid, message);
+    }
+
+    @GetMapping("/me/masked-tc")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ApiResponse<String> getMyMaskedTc() {
+        String patientId = SecurityUtils.getCurrentUserId();
+        return patientService.findById(patientId)
+            .map(patient -> TcKimlikNoValidator.mask(patient.getTcKimlikNo()))
+            .map(masked -> ApiResponse.success(masked, "TC Kimlik No maskelendi"))
+            .orElse(ApiResponse.error("Patient not found"));
     }
     
     @GetMapping("/validate-blood-type")

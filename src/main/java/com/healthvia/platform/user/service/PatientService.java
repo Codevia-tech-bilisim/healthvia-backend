@@ -89,6 +89,11 @@ public interface PatientService {
      * BMI hesapla
      */
     Double calculateBMI(String patientId);
+
+    /**
+     * TC Kimlik No'yu maskeler
+     */
+    String getMaskedTcKimlikNo(String patientId);
     
     /**
      * BMI kategorisi belirle

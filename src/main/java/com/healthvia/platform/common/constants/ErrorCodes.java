@@ -33,7 +33,9 @@ public enum ErrorCodes {
     INTERNAL_SERVER_ERROR("ERR_9000", "Sistem hatası"),
     DATABASE_ERROR("ERR_9001", "Veritabanı hatası"),
     FILE_UPLOAD_ERROR("ERR_9002", "Dosya yükleme hatası"),
-    CACHE_ERROR("ERR_9003", "Önbellek hatası");
+    CACHE_ERROR("ERR_9003", "Önbellek hatası"),
+    VALIDATION_ERROR("ERR_1200", "Validasyon hatası"),
+    INVALID_TC_KIMLIK("ERR_1201", "Geçersiz TC Kimlik Numarası");
     
     private final String code;
     private final String message;
