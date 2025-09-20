@@ -8,6 +8,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import com.healthvia.platform.common.validation.ValidTcKimlikNo;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -26,7 +28,7 @@ import lombok.experimental.SuperBuilder;
 public class Patient extends User {
 
     // === KİMLİK BİLGİLERİ ===
-    @Pattern(regexp = "^[1-9][0-9]{10}$", message = "TC Kimlik No 11 haneli olmalı ve 0 ile başlamamalıdır")
+    @ValidTcKimlikNo(allowNull = false, message = "Geçerli bir TC Kimlik No giriniz")
     @Indexed(unique = true, sparse = true)
     @Field("tc_kimlik_no")
     private String tcKimlikNo;

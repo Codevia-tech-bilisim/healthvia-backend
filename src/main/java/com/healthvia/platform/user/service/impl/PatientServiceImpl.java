@@ -10,8 +10,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.healthvia.platform.common.constants.ErrorCodes;
 import com.healthvia.platform.common.exception.BusinessException;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.common.util.TcKimlikNoValidator;
 import com.healthvia.platform.user.entity.Patient;
 import com.healthvia.platform.user.entity.User;
 import com.healthvia.platform.user.repository.PatientRepository;
@@ -26,26 +28,26 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class PatientServiceImpl implements PatientService {
 
-    private final PatientRepository patientRepository;
-
-    // === BASIC CRUD OPERATIONS ===
-    
     @Override
     public Patient createPatient(Patient patient) {
         validatePatientForCreation(patient);
-        
-        // TC Kimlik No kontrolü
-        if (patient.getTcKimlikNo() != null && !isTcKimlikNoAvailable(patient.getTcKimlikNo())) {
-            throw new BusinessException(null, "TC Kimlik No zaten kullanımda");
-        }
-        
-        // Pasaport No kontrolü
-        if (patient.getPassportNo() != null && !isPassportNoAvailable(patient.getPassportNo())) {
-            throw new BusinessException(null, "Pasaport No zaten kullanımda");
-        }
-        
         return patientRepository.save(patient);
     }
+
+    private final PatientRepository patientRepository;
+
+    // === BASIC CRUD OPERATIONS ===
+    private void validatePatientForCreation(Patient patient) {
+        // TC Kimlik No algoritma kontrolü
+        if (patient.getTcKimlikNo() != null && !patient.getTcKimlikNo().isEmpty()) {
+            if (!TcKimlikNoValidator.isValid(patient.getTcKimlikNo())) {
+                throw new BusinessException(ErrorCodes.VALIDATION_ERROR, "Geçersiz TC Kimlik Numarası");
+            }
+            // TC'yi formatla
+            patient.setTcKimlikNo(TcKimlikNoValidator.format(patient.getTcKimlikNo()));
+        }
+    }
+
 
     @Override
     public Patient updatePatient(String id, Patient patient) {
@@ -71,6 +73,11 @@ public class PatientServiceImpl implements PatientService {
     @Transactional(readOnly = true)
     public Page<Patient> findAll(Pageable pageable) {
         return patientRepository.findAll(pageable);
+    }
+    @Override
+    public String getMaskedTcKimlikNo(String patientId) {
+        Patient patient = findByIdOrThrow(patientId);
+        return TcKimlikNoValidator.mask(patient.getTcKimlikNo());
     }
 
     // === IDENTITY BASED OPERATIONS ===
@@ -433,13 +440,6 @@ public class PatientServiceImpl implements PatientService {
                policyNumber != null && !policyNumber.trim().isEmpty();
     }
 
-    @Override
-    public boolean isValidTcKimlikNo(String tcKimlikNo) {
-        if (tcKimlikNo == null || tcKimlikNo.length() != 11) {
-            return false;
-        }
-        return tcKimlikNo.matches("^[1-9][0-9]{10}$");
-    }
 
     @Override
     public boolean isValidBloodType(String bloodType) {
@@ -532,6 +532,11 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    public boolean isValidTcKimlikNo(String tcKimlikNo) {
+        return TcKimlikNoValidator.isValid(tcKimlikNo);
+    }
+
+    @Override
     public void syncPatientToExternalSystem(String patientId, String systemName) {
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -549,11 +554,7 @@ public class PatientServiceImpl implements PatientService {
             .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", id));
     }
     
-    private void validatePatientForCreation(Patient patient) {
-        if (!validatePatientProfile(patient)) {
-            throw new BusinessException(null, "Invalid patient profile data");
-        }
-    }
+
     
     private void updatePatientFields(Patient existingPatient, Patient newPatient) {
         // Sağlık bilgileri

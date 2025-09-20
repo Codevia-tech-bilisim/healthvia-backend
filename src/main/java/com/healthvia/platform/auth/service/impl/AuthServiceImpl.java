@@ -21,6 +21,7 @@ import com.healthvia.platform.common.constants.ErrorCodes;
 import com.healthvia.platform.common.enums.UserRole;
 import com.healthvia.platform.common.enums.UserStatus;
 import com.healthvia.platform.common.exception.BusinessException;
+import com.healthvia.platform.common.util.TcKimlikNoValidator;
 import com.healthvia.platform.doctor.entity.Doctor;
 import com.healthvia.platform.doctor.repository.DoctorRepository;
 import com.healthvia.platform.user.entity.Patient;
@@ -75,6 +76,13 @@ public class AuthServiceImpl implements AuthService {
             .failedLoginAttempts(0)
             .profileCompletionRate(30)
             .build();
+
+        if (request.getTcKimlikNo() != null && !request.getTcKimlikNo().isEmpty()) {
+            if (!TcKimlikNoValidator.isValid(request.getTcKimlikNo())) {
+                throw new BusinessException(ErrorCodes.VALIDATION_ERROR, "Geçersiz TC Kimlik Numarası");
+            }
+            request.setTcKimlikNo(TcKimlikNoValidator.format(request.getTcKimlikNo()));
+        }
         
         // Save directly with PatientRepository
         Patient savedPatient = patientRepository.save(patient);
