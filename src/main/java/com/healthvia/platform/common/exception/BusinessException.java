@@ -28,4 +28,7 @@ public class BusinessException extends RuntimeException {
         this.errorCode = errorCode;
         this.args = null;
     }
+     public ErrorCodes getErrorCode() {
+        return errorCode;
+    }
 }
