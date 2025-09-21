@@ -94,18 +94,13 @@ public class Admin extends User {
     }
 
     public boolean canManageUserType(String userType) {
-        switch (userType.toUpperCase()) {
-            case "PATIENT":
-                return canManageUsers;
-            case "DOCTOR":
-                return canManageDoctors;
-            case "CLINIC":
-                return canManageClinics;
-            case "ADMIN":
-                return isSuperAdmin();
-            default:
-                return false;
-        }
+        return switch (userType.toUpperCase()) {
+            case "PATIENT" -> canManageUsers;
+            case "DOCTOR" -> canManageDoctors;
+            case "CLINIC" -> canManageClinics;
+            case "ADMIN" -> isSuperAdmin();
+            default -> false;
+        };
     }
 
     public String getAdminDisplayName() {
@@ -132,35 +127,35 @@ public class Admin extends User {
     }
 
     public Boolean getCanManageDoctors() {
-        return canManageDoctors != null ? canManageDoctors : true;
+        return Boolean.TRUE.equals(canManageDoctors) || canManageDoctors == null;
     }
 
     public Boolean getCanManageClinics() {
-        return canManageClinics != null ? canManageClinics : false;
+        return Boolean.TRUE.equals(canManageClinics);
     }
 
     public Boolean getCanViewReports() {
-        return canViewReports != null ? canViewReports : true;
+        return Boolean.TRUE.equals(canViewReports) || canViewReports == null;
     }
 
     public Boolean getCanManageSystem() {
-        return canManageSystem != null ? canManageSystem : false;
+        return Boolean.TRUE.equals(canManageSystem);
     }
 
     public Integer getTotalActionsPerformed() {
-        return totalActionsPerformed != null ? totalActionsPerformed : 0;
+        return java.util.Objects.requireNonNullElse(totalActionsPerformed, 0);
     }
 
     public Integer getUsersManaged() {
-        return usersManaged != null ? usersManaged : 0;
+        return java.util.Objects.requireNonNullElse(usersManaged, 0);
     }
 
     public Integer getDoctorsApproved() {
-        return doctorsApproved != null ? doctorsApproved : 0;
+        return java.util.Objects.requireNonNullElse(doctorsApproved, 0);
     }
 
     public Integer getClinicsApproved() {
-        return clinicsApproved != null ? clinicsApproved : 0;
+        return java.util.Objects.requireNonNullElse(clinicsApproved, 0);
     }
 
     // === NESTED ENUMS ===

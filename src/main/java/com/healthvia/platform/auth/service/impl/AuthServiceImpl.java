@@ -79,9 +79,17 @@ public class AuthServiceImpl implements AuthService {
 
         if (request.getTcKimlikNo() != null && !request.getTcKimlikNo().isEmpty()) {
             if (!TcKimlikNoValidator.isValid(request.getTcKimlikNo())) {
-                throw new BusinessException(ErrorCodes.VALIDATION_ERROR, "Geçersiz TC Kimlik Numarası");
+                throw new BusinessException(
+                    ErrorCodes.VALIDATION_ERROR, 
+                    "Geçersiz TC Kimlik Numarası"
+                );
             }
-            request.setTcKimlikNo(TcKimlikNoValidator.format(request.getTcKimlikNo()));
+            // Formatlanmış TC'yi patient nesnesine set et
+            patient.setTcKimlikNo(
+                TcKimlikNoValidator.format(request.getTcKimlikNo())
+            );
+        } else {
+            patient.setTcKimlikNo(request.getTcKimlikNo());
         }
         
         // Save directly with PatientRepository
@@ -186,9 +194,9 @@ public class AuthServiceImpl implements AuthService {
             .supervisorId(request.getSupervisorId())
             .hireDate(request.getHireDate() != null ? request.getHireDate() : LocalDateTime.now())
             .canManageUsers(request.getCanManageUsers() != null ? request.getCanManageUsers() : true)
-            .canManageDoctors(request.getCanManageDoctors() != null ? request.getCanManageDoctors() : false)
-            .canManageClinics(request.getCanManageClinics() != null ? request.getCanManageClinics() : false)
-            .canViewReports(request.getCanViewReports() != null ? request.getCanViewReports() : true)
+            .canManageDoctors(Boolean.TRUE.equals(request.getCanManageDoctors()))
+            .canManageClinics(Boolean.TRUE.equals(request.getCanManageClinics()))
+            .canViewReports(Boolean.TRUE.equals(request.getCanViewReports()))
             .canManageSystem(request.getCanManageSystem() != null ? request.getCanManageSystem() : false)
             .build();
         

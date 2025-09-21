@@ -146,11 +146,11 @@ public class User extends BaseEntity {
     }
 
     public Boolean getEmailVerified() {
-        return emailVerified != null ? emailVerified : false;
+        return Boolean.TRUE.equals(emailVerified);
     }
 
     public Boolean getPhoneVerified() {
-        return phoneVerified != null ? phoneVerified : false;
+        return Boolean.TRUE.equals(phoneVerified);
     }
 
     public Integer getProfileCompletionRate() {
@@ -158,23 +158,23 @@ public class User extends BaseEntity {
     }
 
     public Integer getFailedLoginAttempts() {
-        return failedLoginAttempts != null ? failedLoginAttempts : 0;
+        return java.util.Objects.requireNonNullElse(failedLoginAttempts, 0);
     }
 
     public Boolean getGdprConsent() {
-        return gdprConsent != null ? gdprConsent : false;
+        return Boolean.TRUE.equals(gdprConsent);
     }
 
     public Boolean getMarketingConsent() {
-        return marketingConsent != null ? marketingConsent : false;
+        return Boolean.TRUE.equals(marketingConsent);
     }
 
     public Boolean getDataProcessingConsent() {
-        return dataProcessingConsent != null ? dataProcessingConsent : false;
+        return Boolean.TRUE.equals(dataProcessingConsent);
     }
 
     public Boolean getDataSharingConsent() {
-        return dataSharingConsent != null ? dataSharingConsent : false;
+        return Boolean.TRUE.equals(dataSharingConsent);
     }
 
     public Language getPreferredLanguage() {
