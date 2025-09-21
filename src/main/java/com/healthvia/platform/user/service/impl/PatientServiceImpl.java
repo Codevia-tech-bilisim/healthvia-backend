@@ -28,27 +28,60 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class PatientServiceImpl implements PatientService {
 
-    @Override
-    public Patient createPatient(Patient patient) {
-        validatePatientForCreation(patient);
-        return patientRepository.save(patient);
-    }
-
     private final PatientRepository patientRepository;
 
     // === BASIC CRUD OPERATIONS ===
+    
+    @Override
+    public Patient createPatient(Patient patient) {
+        // Tüm validasyonları çalıştır
+        validatePatientForCreation(patient);
+        
+        // TC Kimlik No benzersizlik kontrolü
+        if (patient.getTcKimlikNo() != null 
+                && !isTcKimlikNoAvailable(patient.getTcKimlikNo())) {
+            throw new BusinessException(
+                ErrorCodes.VALIDATION_ERROR, 
+                "TC Kimlik No zaten kullanımda"
+            );
+        }
+        
+        // Pasaport No benzersizlik kontrolü
+        if (patient.getPassportNo() != null 
+                && !isPassportNoAvailable(patient.getPassportNo())) {
+            throw new BusinessException(
+                ErrorCodes.VALIDATION_ERROR, 
+                "Pasaport No zaten kullanımda"
+            );
+        }
+        
+        // Hasta kaydını veritabanına yaz
+        return patientRepository.save(patient);
+    }
+    
     private void validatePatientForCreation(Patient patient) {
         // TC Kimlik No algoritma kontrolü
         if (patient.getTcKimlikNo() != null && !patient.getTcKimlikNo().isEmpty()) {
             if (!TcKimlikNoValidator.isValid(patient.getTcKimlikNo())) {
-                throw new BusinessException(ErrorCodes.VALIDATION_ERROR, "Geçersiz TC Kimlik Numarası");
+                throw new BusinessException(
+                    ErrorCodes.VALIDATION_ERROR, 
+                    "Geçersiz TC Kimlik Numarası"
+                );
             }
             // TC'yi formatla
-            patient.setTcKimlikNo(TcKimlikNoValidator.format(patient.getTcKimlikNo()));
+            patient.setTcKimlikNo(
+                TcKimlikNoValidator.format(patient.getTcKimlikNo())
+            );
+        }
+        
+        // Ek profil validasyonu
+        if (!validatePatientProfile(patient)) {
+            throw new BusinessException(
+                ErrorCodes.VALIDATION_ERROR, 
+                "Invalid patient profile data"
+            );
         }
     }
-
-
     @Override
     public Patient updatePatient(String id, Patient patient) {
         Patient existingPatient = findByIdOrThrow(id);
