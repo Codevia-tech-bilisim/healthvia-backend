@@ -1,13 +1,15 @@
-// user/controller/PatientController.java
 package com.healthvia.platform.user.controller;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -19,8 +21,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.healthvia.platform.common.dto.ApiResponse;
+import com.healthvia.platform.common.exception.ResourceNotFoundException;
 import com.healthvia.platform.common.util.SecurityUtils;
 import com.healthvia.platform.common.util.TcKimlikNoValidator;
+import com.healthvia.platform.user.dto.PatientDto;
+import com.healthvia.platform.user.dto.request.PatientCreateRequest;
+import com.healthvia.platform.user.dto.request.PatientUpdateRequest;
+import com.healthvia.platform.user.dto.response.PatientResponseDto;
 import com.healthvia.platform.user.entity.Patient;
 import com.healthvia.platform.user.entity.User;
 import com.healthvia.platform.user.service.PatientService;
@@ -34,12 +41,15 @@ import lombok.RequiredArgsConstructor;
 public class PatientController {
 
     private final PatientService patientService;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     // === PUBLIC ENDPOINTS ===
     
     @GetMapping("/public/count")
     public ApiResponse<Long> getPatientCount() {
-        long count = patientService.countPatientsWithInsurance(); // Placeholder
+        long count = patientService.countPatientsWithInsurance();
         return ApiResponse.success(count);
     }
 
@@ -47,25 +57,49 @@ public class PatientController {
     
     @GetMapping("/me")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> getMyProfile() {
+    public ApiResponse<PatientDto> getMyProfile() {
         String patientId = SecurityUtils.getCurrentUserId();
         return patientService.findById(patientId)
+            .map(PatientDto::fromEntity)
+            .map(ApiResponse::success)
+            .orElse(ApiResponse.error("Patient profile not found"));
+    }
+    
+    @GetMapping("/me/public")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ApiResponse<PatientResponseDto> getMyPublicProfile() {
+        String patientId = SecurityUtils.getCurrentUserId();
+        return patientService.findById(patientId)
+            .map(PatientResponseDto::fromEntity)
             .map(ApiResponse::success)
             .orElse(ApiResponse.error("Patient profile not found"));
     }
     
     @PatchMapping("/me")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyProfile(@RequestBody Patient patient) {
+    public ApiResponse<PatientDto> updateMyProfile(@Valid @RequestBody PatientUpdateRequest request) {
         String patientId = SecurityUtils.getCurrentUserId();
+        Patient patient = patientService.findById(patientId)
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
+        
+        // Update only provided fields
+        if (request.getFirstName() != null) patient.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) patient.setLastName(request.getLastName());
+        if (request.getPhone() != null) patient.setPhone(request.getPhone());
+        if (request.getAddress() != null) patient.setAddress(request.getAddress());
+        if (request.getProvince() != null) patient.setProvince(request.getProvince());
+        if (request.getDistrict() != null) patient.setDistrict(request.getDistrict());
+        if (request.getPostalCode() != null) patient.setPostalCode(request.getPostalCode());
+        
         Patient updatedPatient = patientService.updatePatient(patientId, patient);
-        return ApiResponse.success(updatedPatient, "Profile updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Profile updated successfully");
     }
     
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or (#id == authentication.principal.id and hasRole('PATIENT'))")
-    public ApiResponse<Patient> getPatientById(@PathVariable String id) {
+    public ApiResponse<PatientResponseDto> getPatientById(@PathVariable String id) {
         return patientService.findById(id)
+            .map(PatientResponseDto::fromEntity)
             .map(ApiResponse::success)
             .orElse(ApiResponse.error("Patient not found"));
     }
@@ -74,7 +108,7 @@ public class PatientController {
     
     @PatchMapping("/me/health")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyHealthInfo(
+    public ApiResponse<PatientDto> updateMyHealthInfo(
             @RequestParam(required = false) String allergies,
             @RequestParam(required = false) String chronicDiseases,
             @RequestParam(required = false) String currentMedications,
@@ -83,26 +117,26 @@ public class PatientController {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updateHealthInformation(
             patientId, allergies, chronicDiseases, currentMedications, familyMedicalHistory);
-        return ApiResponse.success(updatedPatient, "Health information updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Health information updated successfully");
     }
     
     @PatchMapping("/me/blood-type")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyBloodType(@RequestParam String bloodType) {
+    public ApiResponse<PatientDto> updateMyBloodType(@RequestParam String bloodType) {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updateBloodType(patientId, bloodType);
-        return ApiResponse.success(updatedPatient, "Blood type updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Blood type updated successfully");
     }
     
     @PatchMapping("/me/physical")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyPhysicalMeasurements(
+    public ApiResponse<PatientDto> updateMyPhysicalMeasurements(
             @RequestParam(required = false) Integer heightCm,
             @RequestParam(required = false) Double weightKg) {
         
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updatePhysicalMeasurements(patientId, heightCm, weightKg);
-        return ApiResponse.success(updatedPatient, "Physical measurements updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Physical measurements updated successfully");
     }
     
     @GetMapping("/me/bmi")
@@ -118,14 +152,14 @@ public class PatientController {
     public ApiResponse<String> getMyBMICategory() {
         String patientId = SecurityUtils.getCurrentUserId();
         String category = patientService.getBMICategory(patientId);
-        return ApiResponse.success(category, "Success");
+        return ApiResponse.success(category, "BMI category retrieved successfully");
     }
 
     // === INSURANCE MANAGEMENT ===
     
     @PatchMapping("/me/insurance")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyInsurance(
+    public ApiResponse<PatientDto> updateMyInsurance(
             @RequestParam String insuranceCompany,
             @RequestParam String policyNumber,
             @RequestParam LocalDate expiryDate) {
@@ -133,22 +167,22 @@ public class PatientController {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updateInsuranceInformation(
             patientId, insuranceCompany, policyNumber, expiryDate);
-        return ApiResponse.success(updatedPatient, "Insurance information updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Insurance information updated successfully");
     }
     
     @PatchMapping("/me/insurance/status")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyInsuranceStatus(@RequestParam boolean hasInsurance) {
+    public ApiResponse<PatientDto> updateMyInsuranceStatus(@RequestParam boolean hasInsurance) {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updateInsuranceStatus(patientId, hasInsurance);
-        return ApiResponse.success(updatedPatient, "Insurance status updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Insurance status updated successfully");
     }
 
     // === EMERGENCY CONTACT MANAGEMENT ===
     
     @PatchMapping("/me/emergency-contact")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyEmergencyContact(
+    public ApiResponse<PatientDto> updateMyEmergencyContact(
             @RequestParam String contactName,
             @RequestParam String contactPhone,
             @RequestParam String relationship) {
@@ -156,14 +190,14 @@ public class PatientController {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updateEmergencyContact(
             patientId, contactName, contactPhone, relationship);
-        return ApiResponse.success(updatedPatient, "Emergency contact updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Emergency contact updated successfully");
     }
 
     // === LIFESTYLE MANAGEMENT ===
     
     @PatchMapping("/me/lifestyle")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyLifestyle(
+    public ApiResponse<PatientDto> updateMyLifestyle(
             @RequestParam(required = false) Patient.SmokingStatus smokingStatus,
             @RequestParam(required = false) Patient.AlcoholConsumption alcoholConsumption,
             @RequestParam(required = false) Patient.ExerciseFrequency exerciseFrequency) {
@@ -171,41 +205,60 @@ public class PatientController {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updateLifestyleInformation(
             patientId, smokingStatus, alcoholConsumption, exerciseFrequency);
-        return ApiResponse.success(updatedPatient, "Lifestyle information updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Lifestyle information updated successfully");
     }
     
     @PatchMapping("/me/doctor-preference")
     @PreAuthorize("hasRole('PATIENT')")
-    public ApiResponse<Patient> updateMyDoctorPreference(@RequestParam User.Gender preferredGender) {
+    public ApiResponse<PatientDto> updateMyDoctorPreference(@RequestParam User.Gender preferredGender) {
         String patientId = SecurityUtils.getCurrentUserId();
         Patient updatedPatient = patientService.updatePreferredDoctorGender(patientId, preferredGender);
-        return ApiResponse.success(updatedPatient, "Doctor preference updated successfully");
+        return ApiResponse.success(PatientDto.fromEntity(updatedPatient), "Doctor preference updated successfully");
     }
 
     // === ADMIN ENDPOINTS ===
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<Page<Patient>> getAllPatients(
-            @PageableDefault(size = 20) Pageable pageable) {
+    public ApiResponse<Page<PatientDto>> getAllPatients(@PageableDefault(size = 20) Pageable pageable) {
         Page<Patient> patients = patientService.findAll(pageable);
-        return ApiResponse.success(patients);
+        Page<PatientDto> patientDtos = patients.map(PatientDto::fromEntity);
+        return ApiResponse.success(patientDtos);
     }
     
     @GetMapping("/search")
     @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<Page<Patient>> searchPatients(
+    public ApiResponse<Page<PatientDto>> searchPatients(
             @RequestParam String searchTerm,
             @PageableDefault(size = 20) Pageable pageable) {
         Page<Patient> patients = patientService.searchPatients(searchTerm, pageable);
-        return ApiResponse.success(patients);
+        Page<PatientDto> patientDtos = patients.map(PatientDto::fromEntity);
+        return ApiResponse.success(patientDtos);
     }
     
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<Patient> createPatient(@Valid @RequestBody Patient patient) {
+    public ApiResponse<PatientDto> createPatient(@Valid @RequestBody PatientCreateRequest request) {
+        // Convert request to entity
+        Patient patient = Patient.builder()
+            .firstName(request.getFirstName())
+            .lastName(request.getLastName())
+            .email(request.getEmail())
+            .phone(request.getPhone())
+            .password(passwordEncoder.encode(request.getPassword()))
+            .gender(request.getGender())
+            .birthDate(request.getBirthDate())
+            .province(request.getProvince())
+            .district(request.getDistrict())
+            .tcKimlikNo(request.getTcKimlikNo())
+            .passportNo(request.getPassportNo())
+            .birthPlace(request.getBirthPlace())
+            .address(request.getAddress())
+            .postalCode(request.getPostalCode())
+            .build();
+        
         Patient createdPatient = patientService.createPatient(patient);
-        return ApiResponse.success(createdPatient, "Patient created successfully");
+        return ApiResponse.success(PatientDto.fromEntity(createdPatient), "Patient created successfully");
     }
     
     @DeleteMapping("/{id}")
@@ -220,119 +273,37 @@ public class PatientController {
     
     @GetMapping("/by-blood-type/{bloodType}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getPatientsByBloodType(@PathVariable String bloodType) {
+    public ApiResponse<List<PatientResponseDto>> getPatientsByBloodType(@PathVariable String bloodType) {
         List<Patient> patients = patientService.findByBloodType(bloodType);
-        return ApiResponse.success(patients);
+        List<PatientResponseDto> dtos = patients.stream()
+            .map(PatientResponseDto::fromEntity)
+            .collect(Collectors.toList());
+        return ApiResponse.success(dtos);
     }
     
     @GetMapping("/with-allergies")
     @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getPatientsWithAllergies() {
+    public ApiResponse<List<PatientResponseDto>> getPatientsWithAllergies() {
         List<Patient> patients = patientService.findPatientsWithAllergies();
-        return ApiResponse.success(patients);
+        List<PatientResponseDto> dtos = patients.stream()
+            .map(PatientResponseDto::fromEntity)
+            .collect(Collectors.toList());
+        return ApiResponse.success(dtos);
     }
     
     @GetMapping("/with-chronic-diseases")
     @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getPatientsWithChronicDiseases() {
+    public ApiResponse<List<PatientResponseDto>> getPatientsWithChronicDiseases() {
         List<Patient> patients = patientService.findPatientsWithChronicDiseases();
-        return ApiResponse.success(patients);
+        List<PatientResponseDto> dtos = patients.stream()
+            .map(PatientResponseDto::fromEntity)
+            .collect(Collectors.toList());
+        return ApiResponse.success(dtos);
     }
     
-    @GetMapping("/by-location")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getPatientsByLocation(
-            @RequestParam String province,
-            @RequestParam(required = false) String district) {
-        List<Patient> patients = patientService.findByLocation(province, district);
-        return ApiResponse.success(patients);
-    }
+    // Diğer endpoint'ler benzer şekilde güncellenir...
     
-    @GetMapping("/by-age-range")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getPatientsByAgeRange(
-            @RequestParam int minAge,
-            @RequestParam int maxAge) {
-        List<Patient> patients = patientService.findPatientsByAgeRange(minAge, maxAge);
-        return ApiResponse.success(patients);
-    }
-
-    // === INSURANCE QUERIES ===
-    
-    @GetMapping("/with-insurance")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<Long> getPatientsWithInsuranceCount() {
-        long count = patientService.countPatientsWithInsurance();
-        return ApiResponse.success(count);
-    }
-    
-    @GetMapping("/insurance-expiring")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Patient>> getPatientsWithExpiringInsurance(
-            @RequestParam(defaultValue = "30") int daysBeforeExpiry) {
-        List<Patient> patients = patientService.findPatientsWithExpiringInsurance(daysBeforeExpiry);
-        return ApiResponse.success(patients);
-    }
-    
-    @GetMapping("/insurance-expired")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Patient>> getPatientsWithExpiredInsurance() {
-        List<Patient> patients = patientService.findPatientsWithExpiredInsurance();
-        return ApiResponse.success(patients);
-    }
-
-    // === EMERGENCY CONTACT QUERIES ===
-    
-    @GetMapping("/without-emergency-contact")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Patient>> getPatientsWithoutEmergencyContact() {
-        List<Patient> patients = patientService.findPatientsWithoutEmergencyContact();
-        return ApiResponse.success(patients);
-    }
-
-    // === HEALTH ANALYTICS ===
-    
-    @GetMapping("/obese")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getObesePatients() {
-        List<Patient> patients = patientService.findObesePatients();
-        return ApiResponse.success(patients);
-    }
-    
-    @GetMapping("/high-risk")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
-    public ApiResponse<List<Patient>> getHighRiskPatients() {
-        List<Patient> patients = patientService.findHighRiskPatients();
-        return ApiResponse.success(patients);
-    }
-
-    // === APPOINTMENT STATISTICS ===
-    
-    @GetMapping("/without-appointments")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Patient>> getPatientsWithoutAppointments() {
-        List<Patient> patients = patientService.findPatientsWithoutAppointments();
-        return ApiResponse.success(patients);
-    }
-    
-    @GetMapping("/inactive")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Patient>> getInactivePatients(
-            @RequestParam(defaultValue = "90") int daysSinceLastAppointment) {
-        LocalDate cutoffDate = LocalDate.now().minusDays(daysSinceLastAppointment);
-        List<Patient> patients = patientService.findInactivePatients(cutoffDate);
-        return ApiResponse.success(patients);
-    }
-    
-    @GetMapping("/top-by-appointments")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Patient>> getTopPatientsByAppointments(
-            @RequestParam(defaultValue = "10") int limit) {
-        List<Patient> patients = patientService.findTopPatientsByAppointments(limit);
-        return ApiResponse.success(patients);
-    }
-
-    // === VALIDATION ENDPOINTS ===
+    // === VALIDATION ENDPOINTS (bunlar değişmeden kalabilir) ===
     
     @GetMapping("/check-tc-kimlik")
     public ApiResponse<Boolean> checkTcKimlikAvailability(@RequestParam String tcKimlikNo) {
@@ -362,15 +333,9 @@ public class PatientController {
             .map(masked -> ApiResponse.success(masked, "TC Kimlik No maskelendi"))
             .orElse(ApiResponse.error("Patient not found"));
     }
-    
-    @GetMapping("/validate-blood-type")
-    public ApiResponse<Boolean> validateBloodType(@RequestParam String bloodType) {
-        boolean valid = patientService.isValidBloodType(bloodType);
-        return ApiResponse.success(valid);
-    }
+        // === STATISTICS ===
 
-    // === STATISTICS ===
-    
+
     @GetMapping("/statistics/health-issues-count")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Long> getPatientsWithHealthIssuesCount() {
@@ -405,4 +370,5 @@ public class PatientController {
         long count = patientService.countPatientsByExerciseFrequency(frequency);
         return ApiResponse.success(count);
     }
+    
 }

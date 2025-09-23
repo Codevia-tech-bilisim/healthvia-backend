@@ -50,7 +50,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/patients/check-**").permitAll() // Patient validation
                 .requestMatchers("/api/doctors/check-**").permitAll()  // Doctor validation
                 .requestMatchers("/error").permitAll()                 // Error pages
-                .requestMatchers("/").permitAll()                      // Root endpoint
+                .requestMatchers("/").permitAll()     
+                .requestMatchers("/api/patients/validate-tc-kimlik").permitAll()
+                .requestMatchers("/api/patients/check-tc-kimlik").permitAll()                 // Root endpoint
                 .requestMatchers("/health").permitAll()                // Health check
                 .requestMatchers("/actuator/**").permitAll()           // Spring actuator
                 .requestMatchers("/swagger-ui/**").permitAll()         // Swagger UI (future)
