@@ -56,13 +56,16 @@ public class SecurityConfig {
                 .requestMatchers("/health").permitAll()                // Health check
                 .requestMatchers("/actuator/**").permitAll()           // Spring actuator
                 .requestMatchers("/swagger-ui/**").permitAll()         // Swagger UI (future)
-                .requestMatchers("/v3/api-docs/**").permitAll()        // OpenAPI docs (future)
+                .requestMatchers("/v3/api-docs/**").permitAll()    
+                .requestMatchers("/api/zoom/signature").permitAll()    // OpenAPI docs (future)
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }
+
+    
     
     @Bean
     public PasswordEncoder passwordEncoder() {
