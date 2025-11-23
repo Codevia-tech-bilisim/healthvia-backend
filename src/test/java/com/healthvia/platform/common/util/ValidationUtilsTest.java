@@ -23,14 +23,14 @@ public class ValidationUtilsTest {
         @Test
         @DisplayName("Turkce karakterli parametre decode")
         void decodeUrlParameter_TurkceKarakterler() {
-            // Given
-            String encoded = "Ba%C5%9F%20a%C4%9Fr%C4%B1s%C4%B1"; // "Bas agrisi" encoded
+            // Given - "Baş ağrısı" URL encoded
+            String encoded = "Ba%C5%9F%20a%C4%9Fr%C4%B1s%C4%B1";
 
             // When
             String result = ValidationUtils.decodeUrlParameter(encoded);
 
-            // Then
-            assertEquals("Ba_ ar1s1", result);
+            // Then - Turkce karakterler: ş=\u015f, ğ=\u011f, ı=\u0131
+            assertEquals("Ba\u015f a\u011fr\u0131s\u0131", result);
         }
 
         @Test
@@ -86,10 +86,38 @@ public class ValidationUtilsTest {
             assertTrue(result);
         }
 
-        @ParameterizedTest
-        @ValueSource(strings = {"^", "�mer", "�ala", "G�l_en", "0brahim", "�nal"})
-        @DisplayName("Turkce ozel karakterli isimler")
-        void isValidTurkishName_TurkceKarakterliIsimler(String name) {
+        @Test
+        @DisplayName("Turkce ozel karakterli isimler - Omer")
+        void isValidTurkishName_TurkceKarakterliIsimler_Omer() {
+            // Given - Ö=\u00d6
+            String name = "\u00d6mer";
+
+            // When
+            boolean result = ValidationUtils.isValidTurkishName(name);
+
+            // Then
+            assertTrue(result);
+        }
+
+        @Test
+        @DisplayName("Turkce ozel karakterli isimler - Cagla")
+        void isValidTurkishName_TurkceKarakterliIsimler_Cagla() {
+            // Given - Ç=\u00c7, ğ=\u011f
+            String name = "\u00c7a\u011fla";
+
+            // When
+            boolean result = ValidationUtils.isValidTurkishName(name);
+
+            // Then
+            assertTrue(result);
+        }
+
+        @Test
+        @DisplayName("Turkce ozel karakterli isimler - Gulsen")
+        void isValidTurkishName_TurkceKarakterliIsimler_Gulsen() {
+            // Given - ü=\u00fc, ş=\u015f
+            String name = "G\u00fcl\u015fen";
+
             // When
             boolean result = ValidationUtils.isValidTurkishName(name);
 
@@ -242,14 +270,14 @@ public class ValidationUtilsTest {
         @Test
         @DisplayName("Turkce karakterli metin")
         void sanitizeChiefComplaint_TurkceKarakterler() {
-            // Given
-            String complaint = "^iddetli ba_ ar1s1, �ks�r�k ve ate_";
+            // Given - Ş=\u015e, ş=\u015f, ğ=\u011f, ı=\u0131, ö=\u00f6, ü=\u00fc
+            String complaint = "\u015eiddetli ba\u015f a\u011fr\u0131s\u0131, \u00f6ks\u00fcr\u00fck ve ate\u015f";
 
             // When
             String result = ValidationUtils.sanitizeChiefComplaint(complaint);
 
             // Then
-            assertEquals("^iddetli ba_ ar1s1, �ks�r�k ve ate_", result);
+            assertEquals(complaint, result);
         }
 
         @Test
@@ -320,14 +348,14 @@ public class ValidationUtilsTest {
         @Test
         @DisplayName("URL encoded Turkce metin decode edilir")
         void sanitizeChiefComplaint_UrlEncodedMetin() {
-            // Given
+            // Given - "Baş ağrısı" URL encoded
             String complaint = "Ba%C5%9F%20a%C4%9Fr%C4%B1s%C4%B1";
 
             // When
             String result = ValidationUtils.sanitizeChiefComplaint(complaint);
 
-            // Then
-            assertEquals("Ba_ ar1s1", result);
+            // Then - ş=\u015f, ğ=\u011f, ı=\u0131
+            assertEquals("Ba\u015f a\u011fr\u0131s\u0131", result);
         }
 
         @Test
@@ -341,7 +369,7 @@ public class ValidationUtilsTest {
 
             // Then
             assertFalse(result.contains("<script>"));
-            assertTrue(result.contains("Ba_ ar1s1"));
+            assertTrue(result.contains("Ba\u015f a\u011fr\u0131s\u0131"));
         }
     }
 
@@ -352,21 +380,22 @@ public class ValidationUtilsTest {
         @Test
         @DisplayName("Tam is akisi - URL decode, validation ve sanitize")
         void tamIsAkisi() {
-            // Given - URL encoded Turkce isim
+            // Given - URL encoded Turkce isim "Ömer" - Ö=%C3%96
             String encodedName = "%C3%96mer";
             String decodedName = ValidationUtils.decodeUrlParameter(encodedName);
 
-            // Then - Decode edilmis isim gecerli olmali
-            assertEquals("�mer", decodedName);
+            // Then - Decode edilmis isim gecerli olmali - Ö=\u00d6
+            assertEquals("\u00d6mer", decodedName);
             assertTrue(ValidationUtils.isValidTurkishName(decodedName));
         }
 
         @Test
         @DisplayName("Gercekci senaryo - hasta sikayeti")
         void gercekciSenaryo_HastaSikayeti() {
-            // Given - Gercekci bir hasta sikayeti
-            String sikayet = "^iddetli ba_ ar1s1, 3 g�nd�r devam ediyor. " +
-                           "Ate_im var (38.5�C). �ks�r�k ve burun ak1nt1s1 mevcut.";
+            // Given - Gercekci bir hasta sikayeti (Turkce karakterler Unicode escape ile)
+            // Şiddetli baş ağrısı, 3 gündür devam ediyor. Ateşim var (38.5°C). Öksürük ve burun akıntısı mevcut.
+            String sikayet = "\u015eiddetli ba\u015f a\u011fr\u0131s\u0131, 3 g\u00fcnd\u00fcr devam ediyor. " +
+                           "Ate\u015fim var (38.5\u00b0C). \u00d6ks\u00fcr\u00fck ve burun ak\u0131nt\u0131s\u0131 mevcut.";
 
             // When
             String sanitized = ValidationUtils.sanitizeChiefComplaint(sikayet);

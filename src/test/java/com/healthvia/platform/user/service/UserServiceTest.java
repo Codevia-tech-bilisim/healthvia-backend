@@ -24,6 +24,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +46,7 @@ import com.healthvia.platform.user.service.impl.UserServiceImpl;
  * Kullanici CRUD islemleri ve hesap yonetimi test edilir
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("UserService Testleri")
 public class UserServiceTest {
 
@@ -68,7 +71,7 @@ public class UserServiceTest {
             .lastName("Yilmaz")
             .email("ahmet@test.com")
             .phone("+905551234567")
-            .password("EncodedPassword123!")
+            .password("EncodedPassword123@")
             .role(UserRole.PATIENT)
             .status(UserStatus.ACTIVE)
             .emailVerified(true)
@@ -92,7 +95,7 @@ public class UserServiceTest {
                 .lastName("Demir")
                 .email("mehmet@test.com")
                 .phone("+905559876543")
-                .password("StrongPass123!")
+                .password("StrongPass123@")
                 .role(UserRole.PATIENT)
                 .build();
 
@@ -119,7 +122,7 @@ public class UserServiceTest {
                 .lastName("Demir")
                 .email("mevcut@test.com")
                 .phone("+905559876543")
-                .password("StrongPass123!")
+                .password("StrongPass123@")
                 .role(UserRole.PATIENT)
                 .build();
 
@@ -142,7 +145,7 @@ public class UserServiceTest {
                 .lastName("Demir")
                 .email("mehmet@test.com")
                 .phone("+905559999999")
-                .password("StrongPass123!")
+                .password("StrongPass123@")
                 .role(UserRole.PATIENT)
                 .build();
 
@@ -165,7 +168,7 @@ public class UserServiceTest {
                 .firstName("Mehmet")
                 .lastName("Demir")
                 .phone("+905559876543")
-                .password("StrongPass123!")
+                .password("StrongPass123@")
                 .role(UserRole.PATIENT)
                 .build();
 

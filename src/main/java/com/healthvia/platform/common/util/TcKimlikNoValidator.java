@@ -115,7 +115,9 @@ public class TcKimlikNoValidator {
         // 10. haneyi hesapla
         int oddSum = digits[0] + digits[2] + digits[4] + digits[6] + digits[8];
         int evenSum = digits[1] + digits[3] + digits[5] + digits[7];
-        digits[9] = ((oddSum * 7) - evenSum) % 10;
+        int digit10Raw = ((oddSum * 7) - evenSum) % 10;
+        // Java'da negatif sayilarin modulo'su negatif olabilir, pozitif yapalim
+        digits[9] = digit10Raw < 0 ? digit10Raw + 10 : digit10Raw;
         
         // 11. haneyi hesapla
         int sumFirst10 = 0;
