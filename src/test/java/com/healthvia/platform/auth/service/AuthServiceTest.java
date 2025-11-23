@@ -261,7 +261,7 @@ public class AuthServiceTest {
             assertNotNull(response);
             assertEquals("accessToken123", response.getAccessToken());
             assertEquals("refreshToken123", response.getRefreshToken());
-            assertEquals("Giris basarili", response.getMessage());
+            assertEquals("Giri\u015f ba\u015far\u0131l\u0131", response.getMessage());
         }
 
         @Test

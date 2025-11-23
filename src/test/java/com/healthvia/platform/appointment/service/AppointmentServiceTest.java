@@ -198,7 +198,7 @@ public class AppointmentServiceTest {
 
             given(timeSlotService.findById(slotId)).willReturn(Optional.of(testSlot));
             given(appointmentRepository.save(any(Appointment.class))).willReturn(testAppointment);
-            doNothing().when(timeSlotService).bookSlot(anyString(), anyString());
+            given(timeSlotService.bookSlot(anyString(), anyString())).willReturn(testSlot);
 
             // When
             Appointment result = appointmentService.bookAppointment(

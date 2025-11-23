@@ -117,6 +117,8 @@ public class JwtTokenProvider {
                 .build()
                 .parseClaimsJws(token);
             return true;
+        } catch (io.jsonwebtoken.security.SignatureException ex) {
+            log.error("Invalid JWT signature");
         } catch (MalformedJwtException ex) {
             log.error("Invalid JWT token");
         } catch (ExpiredJwtException ex) {
