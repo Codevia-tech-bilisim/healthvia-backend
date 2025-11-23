@@ -197,7 +197,7 @@ public class AuthControllerTest {
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.accessToken").exists())
                     .andExpect(jsonPath("$.data.refreshToken").exists())
-                    .andExpect(jsonPath("$.message").value("Giris basarili"));
+                    .andExpect(jsonPath("$.message").value("Giri\u015f ba\u015far\u0131l\u0131"));
 
             verify(authService, times(1)).login(any(LoginRequest.class));
         }
