@@ -1,28 +1,32 @@
 package com.healthvia.platform.auth.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.healthvia.platform.admin.entity.Admin;
 import com.healthvia.platform.admin.repository.AdminRepository;
 import com.healthvia.platform.auth.dto.AuthResponse;
 import com.healthvia.platform.auth.dto.LoginRequest;
@@ -36,7 +40,6 @@ import com.healthvia.platform.common.exception.BusinessException;
 import com.healthvia.platform.doctor.entity.Doctor;
 import com.healthvia.platform.doctor.repository.DoctorRepository;
 import com.healthvia.platform.user.entity.Patient;
-import com.healthvia.platform.user.entity.User;
 import com.healthvia.platform.user.repository.PatientRepository;
 import com.healthvia.platform.user.repository.UserRepository;
 
@@ -145,7 +148,7 @@ public class AuthServiceTest {
             assertEquals("accessToken123", response.getAccessToken());
             assertEquals("refreshToken123", response.getRefreshToken());
             assertEquals("Bearer", response.getTokenType());
-            assertFalse(response.isRequiresAction());
+            assertFalse(response.getRequiresAction());
 
             verify(patientRepository, times(1)).save(any(Patient.class));
             verify(passwordEncoder, times(1)).encode(validRegisterRequest.getPassword());
@@ -296,7 +299,7 @@ public class AuthServiceTest {
         @DisplayName("Hesap kilitli - hata firlatmali")
         void login_HesapKilitli() {
             // Given
-            testPatient.setAccountLocked(true);
+            testPatient.setAccountLockedUntil(LocalDateTime.now().plusMinutes(5));
             given(userRepository.findByEmailOrPhone(anyString())).willReturn(Optional.of(testPatient));
 
             // When & Then

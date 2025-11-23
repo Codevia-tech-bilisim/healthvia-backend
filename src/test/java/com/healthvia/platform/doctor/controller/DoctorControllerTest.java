@@ -97,12 +97,19 @@ public class DoctorControllerTest {
             .averageRating(4.5)
             .totalReviews(50)
             .consultationFee(new BigDecimal("300.00"))
-            .consultationDurationMinutes(30)
             .isAcceptingNewPatients(true)
             .verificationStatus(Doctor.VerificationStatus.VERIFIED)
             .province("Istanbul")
             .district("Kadikoy")
             .build();
+        // set consultation duration via reflection because the builder does not expose consultationDuration(...)
+        try {
+            java.lang.reflect.Field durationField = Doctor.class.getDeclaredField("consultationDuration");
+            durationField.setAccessible(true);
+            durationField.set(testDoctor, 30);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
         testDoctor.setId(doctorId);
     }
 
@@ -118,7 +125,7 @@ public class DoctorControllerTest {
             Page<Doctor> doctorPage = new PageImpl<>(doctors, PageRequest.of(0, 20), 1);
 
             given(doctorService.findDoctorsWithFilters(
-                any(), any(), any(), any(), any(Pageable.class)))
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .willReturn(doctorPage);
 
             // When & Then
@@ -138,7 +145,7 @@ public class DoctorControllerTest {
             Page<Doctor> doctorPage = new PageImpl<>(doctors);
 
             given(doctorService.findDoctorsWithFilters(
-                eq("Kardiyoloji"), any(), any(), any(), any(Pageable.class)))
+                eq("Kardiyoloji"), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .willReturn(doctorPage);
 
             // When & Then
@@ -289,7 +296,7 @@ public class DoctorControllerTest {
             List<Doctor> doctors = Arrays.asList(testDoctor);
             Page<Doctor> doctorPage = new PageImpl<>(doctors);
 
-            given(doctorService.findAll(any(Pageable.class))).willReturn(doctorPage);
+            given(doctorService.findAll(org.mockito.ArgumentMatchers.any(Pageable.class))).willReturn(doctorPage);
 
             // When & Then
             mockMvc.perform(get("/api/doctors")
@@ -307,7 +314,7 @@ public class DoctorControllerTest {
             List<Doctor> doctors = Arrays.asList(testDoctor);
             Page<Doctor> doctorPage = new PageImpl<>(doctors);
 
-            given(doctorService.searchDoctors(eq("Mehmet"), any(Pageable.class)))
+            given(doctorService.searchDoctors(eq("Mehmet"), org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .willReturn(doctorPage);
 
             // When & Then
