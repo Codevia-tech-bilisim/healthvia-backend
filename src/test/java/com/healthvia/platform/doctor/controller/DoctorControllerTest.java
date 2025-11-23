@@ -20,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
@@ -96,7 +97,7 @@ public class DoctorControllerTest {
             .averageRating(4.5)
             .totalReviews(50)
             .consultationFee(new BigDecimal("300.00"))
-            .consultationDuration(30)
+            .consultationDurationMinutes(30)
             .isAcceptingNewPatients(true)
             .verificationStatus(Doctor.VerificationStatus.VERIFIED)
             .province("Istanbul")
