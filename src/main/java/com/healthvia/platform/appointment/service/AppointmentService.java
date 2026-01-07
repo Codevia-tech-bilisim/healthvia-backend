@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 
 import com.healthvia.platform.appointment.entity.Appointment;
 import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
+import com.healthvia.platform.appointment.dto.VideoAppointmentRequest;
+import com.healthvia.platform.appointment.dto.VideoAppointmentResponse;
 
 public interface AppointmentService {
 
@@ -184,4 +186,21 @@ public interface AppointmentService {
      * Gelmeme oranını hesapla
      */
     double calculateNoShowRate(String doctorId, LocalDate startDate, LocalDate endDate);
+
+    // === VIDEO RANDEVU İŞLEMLERİ ===
+
+    /**
+     * Video randevusu oluştur (Zoom meeting ile)
+     */
+    VideoAppointmentResponse createVideoAppointment(VideoAppointmentRequest request);
+
+    /**
+     * Randevunun meeting linkini getir
+     */
+    VideoAppointmentResponse getMeetingLink(String appointmentId, String userId, String userRole);
+
+    /**
+     * Randevu iptalinde Zoom meeting'i sil
+     */
+    Appointment cancelVideoAppointment(String appointmentId, String cancelledBy, String reason);
 }
