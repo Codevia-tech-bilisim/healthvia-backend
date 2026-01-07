@@ -11,8 +11,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.healthvia.platform.appointment.dto.VideoAppointmentRequest;
+import com.healthvia.platform.appointment.dto.VideoAppointmentResponse;
 import com.healthvia.platform.appointment.entity.Appointment;
 import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
+import com.healthvia.platform.appointment.entity.Appointment.ConsultationType;
+import com.healthvia.platform.appointment.entity.Appointment.MeetingInfo;
 import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
 import com.healthvia.platform.appointment.entity.TimeSlot;
 import com.healthvia.platform.appointment.repository.AppointmentRepository;
@@ -20,6 +24,9 @@ import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.appointment.service.TimeSlotService;
 import com.healthvia.platform.common.exception.AppointmentExceptions;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.zoom.dto.ZoomMeetingRequest;
+import com.healthvia.platform.zoom.dto.ZoomMeetingResponse;
+import com.healthvia.platform.zoom.service.ZoomService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +39,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final TimeSlotService timeSlotService;
+    private final ZoomService zoomService;
 
     // === TEMEL CRUD İŞLEMLERİ ===
 
@@ -470,5 +478,155 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (appointment.getDurationMinutes() < 15 || appointment.getDurationMinutes() > 180) {
             throw new RuntimeException("Randevu süresi 15-180 dakika arasında olmalı");
         }
+    }
+
+    // === VIDEO RANDEVU İŞLEMLERİ ===
+
+    @Override
+    public VideoAppointmentResponse createVideoAppointment(VideoAppointmentRequest request) {
+        log.info("Creating video appointment for patient: {} with doctor: {}",
+                request.getPatientId(), request.getDoctorId());
+
+        // 1. Tarih validasyonu
+        LocalDateTime appointmentDateTime = request.getAppointmentDate().atTime(request.getStartTime());
+        if (appointmentDateTime.isBefore(LocalDateTime.now())) {
+            throw new AppointmentExceptions.PastDateAppointmentException();
+        }
+
+        // 2. Çakışma kontrolü
+        LocalTime endTime = request.getStartTime().plusMinutes(request.getDurationMinutes());
+        boolean hasConflict = hasConflictingAppointment(
+                request.getDoctorId(),
+                request.getAppointmentDate(),
+                appointmentDateTime,
+                request.getAppointmentDate().atTime(endTime)
+        );
+
+        if (hasConflict) {
+            throw new RuntimeException("Bu saat diliminde başka bir randevu mevcut");
+        }
+
+        // 3. Zoom meeting oluştur
+        String meetingTopic = request.getMeetingTopic() != null
+                ? request.getMeetingTopic()
+                : "HealthVia Video Konsültasyon";
+
+        ZoomMeetingRequest zoomRequest = ZoomMeetingRequest.builder()
+                .topic(meetingTopic)
+                .startTime(appointmentDateTime)
+                .durationMinutes(request.getDurationMinutes())
+                .agenda(request.getMeetingAgenda())
+                .patientId(request.getPatientId())
+                .doctorId(request.getDoctorId())
+                .waitingRoom(request.getWaitingRoom())
+                .build();
+
+        ZoomMeetingResponse zoomResponse = zoomService.createMeeting(zoomRequest);
+
+        // 4. Appointment oluştur
+        Appointment appointment = Appointment.builder()
+                .patientId(request.getPatientId())
+                .doctorId(request.getDoctorId())
+                .appointmentDate(request.getAppointmentDate())
+                .startTime(request.getStartTime())
+                .endTime(endTime)
+                .durationMinutes(request.getDurationMinutes())
+                .status(AppointmentStatus.PENDING)
+                .consultationType(ConsultationType.VIDEO_CALL)
+                .treatmentTypeId(request.getTreatmentTypeId())
+                .chiefComplaint(request.getChiefComplaint())
+                .consultationFee(java.math.BigDecimal.ZERO)
+                .currency("TRY")
+                .paymentStatus(Appointment.PaymentStatus.PENDING)
+                .isFollowUp(request.getIsFollowUp())
+                .originalAppointmentId(request.getOriginalAppointmentId())
+                .smsNotificationsEnabled(true)
+                .emailNotificationsEnabled(true)
+                .statusChangedAt(LocalDateTime.now())
+                .meetingInfo(new MeetingInfo(
+                        String.valueOf(zoomResponse.getId()),
+                        zoomResponse.getJoinUrl(),
+                        zoomResponse.getPassword(),
+                        "ZOOM",
+                        null,
+                        null,
+                        null
+                ))
+                .build();
+
+        appointment = appointmentRepository.save(appointment);
+        log.info("Video appointment created successfully with ID: {} and Zoom meeting ID: {}",
+                appointment.getId(), zoomResponse.getId());
+
+        // 5. Response oluştur (doktor için startUrl dahil)
+        VideoAppointmentResponse response = VideoAppointmentResponse.fromAppointment(appointment);
+        if (response.getMeetingDetails() != null) {
+            response.getMeetingDetails().setStartUrl(zoomResponse.getStartUrl());
+        }
+
+        return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VideoAppointmentResponse getMeetingLink(String appointmentId, String userId, String userRole) {
+        log.info("Getting meeting link for appointment: {} by user: {} with role: {}",
+                appointmentId, userId, userRole);
+
+        Appointment appointment = findByIdOrThrow(appointmentId);
+
+        // Yetki kontrolü
+        if (!appointment.getPatientId().equals(userId) &&
+            !appointment.getDoctorId().equals(userId) &&
+            !"ADMIN".equalsIgnoreCase(userRole)) {
+            throw new RuntimeException("Bu randevunun meeting bilgilerine erişim yetkiniz yok");
+        }
+
+        // Video randevu kontrolü
+        if (appointment.getConsultationType() != ConsultationType.VIDEO_CALL) {
+            throw new RuntimeException("Bu randevu video konsültasyon değil");
+        }
+
+        if (appointment.getMeetingInfo() == null) {
+            throw new RuntimeException("Bu randevu için meeting bilgisi bulunamadı");
+        }
+
+        // Doktor ise startUrl'i Zoom'dan al
+        if (appointment.getDoctorId().equals(userId) || "ADMIN".equalsIgnoreCase(userRole)) {
+            try {
+                ZoomMeetingResponse zoomMeeting = zoomService.getMeeting(
+                        appointment.getMeetingInfo().getMeetingId());
+                return VideoAppointmentResponse.fromAppointmentForDoctor(appointment, zoomMeeting.getStartUrl());
+            } catch (Exception e) {
+                log.warn("Could not fetch Zoom meeting details: {}", e.getMessage());
+                return VideoAppointmentResponse.fromAppointment(appointment);
+            }
+        }
+
+        return VideoAppointmentResponse.fromAppointment(appointment);
+    }
+
+    @Override
+    public Appointment cancelVideoAppointment(String appointmentId, String cancelledBy, String reason) {
+        log.info("Cancelling video appointment: {} by: {}", appointmentId, cancelledBy);
+
+        Appointment appointment = findByIdOrThrow(appointmentId);
+
+        // Video randevu ise Zoom meeting'i sil
+        if (appointment.getConsultationType() == ConsultationType.VIDEO_CALL &&
+            appointment.getMeetingInfo() != null &&
+            appointment.getMeetingInfo().getMeetingId() != null) {
+
+            try {
+                zoomService.deleteMeeting(appointment.getMeetingInfo().getMeetingId());
+                log.info("Zoom meeting deleted for appointment: {}", appointmentId);
+            } catch (Exception e) {
+                log.warn("Could not delete Zoom meeting: {}", e.getMessage());
+                // Meeting silinemese bile randevu iptal edilmeli
+            }
+        }
+
+        // Normal iptal işlemini çağır
+        return cancelAppointment(appointmentId, cancelledBy, reason);
     }
 }

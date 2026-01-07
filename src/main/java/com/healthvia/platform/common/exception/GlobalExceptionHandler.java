@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.dto.ErrorResponse;
+import com.healthvia.platform.zoom.exception.ZoomApiException;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -415,8 +416,33 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(error));
     }
     
+    // ===== ZOOM API EXCEPTIONS =====
+
+    @ExceptionHandler(ZoomApiException.class)
+    public ResponseEntity<ApiResponse<Void>> handleZoomApiException(
+            ZoomApiException ex, WebRequest request, HttpServletRequest httpRequest) {
+
+        String correlationId = getCorrelationId(httpRequest);
+        String clientIp = getClientIp(httpRequest);
+
+        log.error("Zoom API error - CorrelationId: {}, IP: {}, Error: {}, ErrorCode: {}",
+                correlationId, clientIp, ex.getMessage(), ex.getErrorCode());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ex.getErrorCode())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(getCleanPath(request))
+                .correlationId(correlationId)
+                .build();
+
+        return ResponseEntity
+                .status(ex.getStatus())
+                .body(ApiResponse.error(error));
+    }
+
     // ===== RATE LIMITING & PERFORMANCE =====
-    
+
     /**
      * Rate Limiting için özel exception handler
      */
