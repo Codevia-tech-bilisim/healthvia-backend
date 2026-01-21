@@ -2,6 +2,7 @@ package com.healthvia.platform.appointment.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -17,8 +18,8 @@ import com.healthvia.platform.appointment.entity.Appointment;
 import com.healthvia.platform.appointment.entity.Appointment.AppointmentStatus;
 import com.healthvia.platform.appointment.entity.Appointment.ConsultationType;
 import com.healthvia.platform.appointment.entity.Appointment.MeetingInfo;
-import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
 import com.healthvia.platform.appointment.entity.TimeSlot;
+import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
 import com.healthvia.platform.appointment.repository.AppointmentRepository;
 import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.appointment.service.TimeSlotService;

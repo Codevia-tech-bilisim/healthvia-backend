@@ -32,7 +32,6 @@ import com.healthvia.platform.common.util.ValidationUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,7 +58,7 @@ public class AppointmentController {
         VideoAppointmentResponse response = appointmentService.createVideoAppointment(request);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Video randevusu başarıyla oluşturuldu", response));
+                .body(ApiResponse.success(response, "Video randevusu başarıyla oluşturuldu"));
     }
 
     @GetMapping("/{id}/meeting-link")
@@ -73,7 +72,7 @@ public class AppointmentController {
                 id, currentUser.getId());
 
         VideoAppointmentResponse response = appointmentService.getMeetingLink(
-                id, currentUser.getId(), currentUser.getRole());
+                id, currentUser.getId(), currentUser.getRole().toString());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -90,7 +89,7 @@ public class AppointmentController {
 
         Appointment appointment = appointmentService.cancelVideoAppointment(id, cancelledBy, reason);
 
-        return ResponseEntity.ok(ApiResponse.success("Video randevusu başarıyla iptal edildi", appointment));
+        return ResponseEntity.ok(ApiResponse.success(appointment, "Video randevusu başarıyla iptal edildi"));
     }
 
     // === HASTA ENDPOİNTLERİ ===
