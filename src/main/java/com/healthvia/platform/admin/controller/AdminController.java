@@ -258,6 +258,58 @@ public class AdminController {
         return ApiResponse.success(canPerform);
     }
 
+        // === AGENT MANAGEMENT ===
+
+    @PatchMapping("/me/availability")
+    public ApiResponse<AdminDto> setMyAvailability(@RequestParam boolean available) {
+        String adminId = SecurityUtils.getCurrentUserId();
+        Admin updated = adminService.setAvailability(adminId, available);
+        return ApiResponse.success(AdminDto.fromEntity(updated),
+                available ? "Çevrimiçi oldunuz" : "Çevrimdışı oldunuz");
+    }
+
+    @PatchMapping("/me/agent-profile")
+    public ApiResponse<AdminDto> updateMyAgentProfile(
+            @RequestParam(required = false) Set<String> spokenLanguages,
+            @RequestParam(required = false) Set<String> specializations,
+            @RequestParam(required = false) Integer maxConcurrentChats) {
+
+        String adminId = SecurityUtils.getCurrentUserId();
+        Admin updated = adminService.updateAgentProfile(adminId, spokenLanguages,
+                specializations, maxConcurrentChats);
+        return ApiResponse.success(AdminDto.fromEntity(updated), "Agent profili güncellendi");
+    }
+
+    @PatchMapping("/me/shift")
+    public ApiResponse<AdminDto> updateMyShift(
+            @RequestParam java.time.LocalTime shiftStart,
+            @RequestParam java.time.LocalTime shiftEnd,
+            @RequestParam Set<String> workingDays) {
+
+        String adminId = SecurityUtils.getCurrentUserId();
+        Admin updated = adminService.updateShift(adminId, shiftStart, shiftEnd, workingDays);
+        return ApiResponse.success(AdminDto.fromEntity(updated), "Mesai saatleri güncellendi");
+    }
+
+    @GetMapping("/agents/available")
+    public ApiResponse<List<AdminSummaryDto>> getAvailableAgents() {
+        List<Admin> agents = adminService.findAvailableAgents();
+        List<AdminSummaryDto> dtos = agents.stream()
+                .map(AdminSummaryDto::fromEntity)
+                .toList();
+        return ApiResponse.success(dtos);
+    }
+
+    @GetMapping("/agents/available/language/{language}")
+    public ApiResponse<List<AdminSummaryDto>> getAvailableAgentsByLanguage(
+            @PathVariable String language) {
+        List<Admin> agents = adminService.findAvailableAgentsByLanguage(language);
+        List<AdminSummaryDto> dtos = agents.stream()
+                .map(AdminSummaryDto::fromEntity)
+                .toList();
+        return ApiResponse.success(dtos);
+    }
+
     // === STATISTICS ===
     
     @GetMapping("/statistics/count-by-department")

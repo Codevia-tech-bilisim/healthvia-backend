@@ -61,6 +61,23 @@ public class AdminDto {
     private LocalDateTime hireDate;
     private String supervisorId;
     private String supervisorName; // Computed field
+
+        // === SATIŞ TEMSİLCİSİ ===
+    private Set<String> spokenLanguages;
+    private Boolean isAvailable;
+    private Integer maxConcurrentChats;
+    private Integer currentActiveChats;
+    private Integer assignedLeadCount;
+    private Integer convertedLeadCount;
+    private Long averageResponseTimeSeconds;
+    private Set<String> specializations;
+    private java.time.LocalTime shiftStart;
+    private java.time.LocalTime shiftEnd;
+    private Set<String> workingDays;
+
+    // Computed
+    private Double leadConversionRate;
+    private Boolean canAcceptNewChat;
     
     // === ACTIVITY TRACKING ===
     private LocalDateTime lastAdminAction;
@@ -201,6 +218,19 @@ public class AdminDto {
             .usersManaged(admin.getUsersManaged())
             .doctorsApproved(admin.getDoctorsApproved())
             .clinicsApproved(admin.getClinicsApproved())
+            .spokenLanguages(admin.getSpokenLanguages())
+            .isAvailable(admin.getIsAvailable())
+            .maxConcurrentChats(admin.getMaxConcurrentChats())
+            .currentActiveChats(admin.getCurrentActiveChats())
+            .assignedLeadCount(admin.getAssignedLeadCount())
+            .convertedLeadCount(admin.getConvertedLeadCount())
+            .averageResponseTimeSeconds(admin.getAverageResponseTimeSeconds())
+            .specializations(admin.getSpecializations())
+            .shiftStart(admin.getShiftStart())
+            .shiftEnd(admin.getShiftEnd())
+            .workingDays(admin.getWorkingDays())
+            .leadConversionRate(admin.getLeadConversionRate())
+            .canAcceptNewChat(admin.canAcceptNewChat())
             .build();
     }
     

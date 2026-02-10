@@ -56,7 +56,10 @@ public class SecurityConfig {
                 .requestMatchers("/health").permitAll()                // Health check
                 .requestMatchers("/actuator/**").permitAll()           // Spring actuator
                 .requestMatchers("/swagger-ui/**").permitAll()         // Swagger UI (future)
-                .requestMatchers("/v3/api-docs/**").permitAll()        // OpenAPI docs (future)
+                .requestMatchers("/v3/api-docs/**").permitAll()  
+                .requestMatchers("/api/v1/treatments/public/**").permitAll()      // OpenAPI docs (future)
+                .requestMatchers("/api/v1/leads/public/**").permitAll()
+                .requestMatchers("/api/v1/leads/webhook/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

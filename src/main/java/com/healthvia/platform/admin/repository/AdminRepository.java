@@ -187,6 +187,14 @@ public interface AdminRepository extends MongoRepository<Admin, String> {
     @Query("{ 'deleted': false }")
     List<Admin> findAllOrderByHireDateAsc();
 
+    List<Admin> findByIsAvailableTrueAndDeletedFalse();
+
+    @Query("{ 'isAvailable': true, 'spokenLanguages': ?0, 'deleted': false }")
+    List<Admin> findAvailableAgentsByLanguage(String language);
+
+    @Query("{ 'isAvailable': true, 'specializations': ?0, 'deleted': false }")
+    List<Admin> findAvailableAgentsBySpecialization(String specialization);
+
     // === SEARCH QUERIES ===
     
     /**

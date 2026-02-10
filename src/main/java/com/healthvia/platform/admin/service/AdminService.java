@@ -52,6 +52,16 @@ public interface AdminService {
     List<Admin> findMostActiveAdmins(int minActions);
     List<Admin> findHighPerformingAdmins(int minTotalActions);
 
+        // === AGENT (SATIŞ TEMSİLCİSİ) YÖNETİMİ ===
+    Admin updateAgentProfile(String adminId, Set<String> spokenLanguages,
+                            Set<String> specializations, Integer maxConcurrentChats);
+    Admin setAvailability(String adminId, boolean isAvailable);
+    Admin updateShift(String adminId, java.time.LocalTime shiftStart,
+                     java.time.LocalTime shiftEnd, Set<String> workingDays);
+    List<Admin> findAvailableAgents();
+    List<Admin> findAvailableAgentsByLanguage(String language);
+    Admin findBestAvailableAgent(String language, String treatmentCategory);
+
     // === VALIDATION ===
     boolean isEmployeeIdAvailable(String employeeId);
     boolean canPerformSystemOperation(String adminId);

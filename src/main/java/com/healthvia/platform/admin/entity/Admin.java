@@ -9,6 +9,8 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import com.healthvia.platform.user.entity.User;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -67,6 +69,44 @@ public class Admin extends User {
     @Field("supervisor_id")
     private String supervisorId; // Yönetici ID'si
 
+    // === SATIŞ TEMSİLCİSİ ÖZELLİKLERİ ===
+
+    @Field("spoken_languages")
+    private Set<String> spokenLanguages; // "TR", "EN", "AR", "DE", "RU", "FR"
+
+    @Field("is_available")
+    private Boolean isAvailable; // Online/offline durumu
+
+    @Field("max_concurrent_chats")
+    @Min(value = 1, message = "En az 1 eş zamanlı chat olmalı")
+    @Max(value = 20, message = "En fazla 20 eş zamanlı chat olabilir")
+    private Integer maxConcurrentChats; // Eş zamanlı konuşma limiti
+
+    @Field("current_active_chats")
+    private Integer currentActiveChats; // Aktif konuşma sayısı
+
+    @Field("assigned_lead_count")
+    private Integer assignedLeadCount; // Toplam atanan lead
+
+    @Field("converted_lead_count")
+    private Integer convertedLeadCount; // Dönüştürülen lead
+
+    @Field("average_response_time_seconds")
+    private Long averageResponseTimeSeconds; // Ortalama yanıt süresi (saniye)
+
+    @Field("specializations")
+    private Set<String> specializations; // "HAIR_TRANSPLANT", "DENTAL", "EYE" vb.
+
+    @Field("shift_start")
+    private java.time.LocalTime shiftStart; // Mesai başlangıç
+
+    @Field("shift_end")
+    private java.time.LocalTime shiftEnd; // Mesai bitiş
+
+    @Field("working_days")
+    private Set<String> workingDays; // "MONDAY", "TUESDAY" vb.
+
+
     // === ACTIVITY TRACKING ===
     @Field("last_admin_action")
     private LocalDateTime lastAdminAction;
@@ -116,6 +156,44 @@ public class Admin extends User {
         this.totalActionsPerformed = getTotalActionsPerformed() + 1;
     }
 
+    public boolean isOnline() {
+        return Boolean.TRUE.equals(isAvailable) && !isDeleted();
+    }
+
+    public boolean canAcceptNewChat() {
+        return isOnline() && getCurrentActiveChats() < getMaxConcurrentChats();
+    }
+
+    public boolean speaksLanguage(String language) {
+        return spokenLanguages != null && spokenLanguages.contains(language);
+    }
+
+    public boolean isSpecializedIn(String treatmentCategory) {
+        return specializations != null && specializations.contains(treatmentCategory);
+    }
+
+    public double getLeadConversionRate() {
+        if (getAssignedLeadCount() == 0) return 0.0;
+        return (double) getConvertedLeadCount() / getAssignedLeadCount() * 100;
+    }
+
+    public void incrementActiveChats() {
+        this.currentActiveChats = getCurrentActiveChats() + 1;
+    }
+
+    public void decrementActiveChats() {
+        int current = getCurrentActiveChats();
+        this.currentActiveChats = current > 0 ? current - 1 : 0;
+    }
+
+    public void recordLeadAssignment() {
+        this.assignedLeadCount = getAssignedLeadCount() + 1;
+    }
+
+    public void recordLeadConversion() {
+        this.convertedLeadCount = getConvertedLeadCount() + 1;
+    }
+
     // === GETTER METHODS WITH DEFAULTS ===
     
     public AdminLevel getAdminLevel() {
@@ -156,6 +234,29 @@ public class Admin extends User {
 
     public Integer getClinicsApproved() {
         return java.util.Objects.requireNonNullElse(clinicsApproved, 0);
+    }
+    public Boolean getIsAvailable() {
+        return isAvailable != null ? isAvailable : false;
+    }
+
+    public Integer getMaxConcurrentChats() {
+        return maxConcurrentChats != null ? maxConcurrentChats : 5;
+    }
+
+    public Integer getCurrentActiveChats() {
+        return currentActiveChats != null ? currentActiveChats : 0;
+    }
+
+    public Integer getAssignedLeadCount() {
+        return assignedLeadCount != null ? assignedLeadCount : 0;
+    }
+
+    public Integer getConvertedLeadCount() {
+        return convertedLeadCount != null ? convertedLeadCount : 0;
+    }
+
+    public Long getAverageResponseTimeSeconds() {
+        return averageResponseTimeSeconds != null ? averageResponseTimeSeconds : 0L;
     }
 
     // === NESTED ENUMS ===

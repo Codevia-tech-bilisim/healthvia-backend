@@ -258,6 +258,63 @@ public class AdminServiceImpl implements AdminService {
         return admin.isSuperAdmin();
     }
 
+        // === AGENT YÖNETİMİ ===
+
+    @Override
+    public Admin updateAgentProfile(String adminId, Set<String> spokenLanguages,
+                                   Set<String> specializations, Integer maxConcurrentChats) {
+        Admin admin = findByIdOrThrow(adminId);
+        if (spokenLanguages != null) admin.setSpokenLanguages(spokenLanguages);
+        if (specializations != null) admin.setSpecializations(specializations);
+        if (maxConcurrentChats != null) admin.setMaxConcurrentChats(maxConcurrentChats);
+        return adminRepository.save(admin);
+    }
+
+    @Override
+    public Admin setAvailability(String adminId, boolean isAvailable) {
+        Admin admin = findByIdOrThrow(adminId);
+        admin.setIsAvailable(isAvailable);
+        if (!isAvailable) {
+            admin.setCurrentActiveChats(0);
+        }
+        return adminRepository.save(admin);
+    }
+
+    @Override
+    public Admin updateShift(String adminId, java.time.LocalTime shiftStart,
+                            java.time.LocalTime shiftEnd, Set<String> workingDays) {
+        Admin admin = findByIdOrThrow(adminId);
+        admin.setShiftStart(shiftStart);
+        admin.setShiftEnd(shiftEnd);
+        admin.setWorkingDays(workingDays);
+        return adminRepository.save(admin);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Admin> findAvailableAgents() {
+        return adminRepository.findByIsAvailableTrueAndDeletedFalse();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Admin> findAvailableAgentsByLanguage(String language) {
+        return adminRepository.findAvailableAgentsByLanguage(language);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Admin findBestAvailableAgent(String language, String treatmentCategory) {
+        List<Admin> agents = findAvailableAgents();
+
+        return agents.stream()
+                .filter(Admin::canAcceptNewChat)
+                .filter(a -> language == null || a.speaksLanguage(language))
+                .filter(a -> treatmentCategory == null || a.isSpecializedIn(treatmentCategory))
+                .min(java.util.Comparator.comparingInt(Admin::getCurrentActiveChats))
+                .orElse(null); // En az yükü olan agent
+    }
+
     // === HELPER METHODS ===
 
     private Admin findByIdOrThrow(String id) {
