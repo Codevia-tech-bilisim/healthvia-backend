@@ -247,12 +247,9 @@ public class Appointment extends BaseEntity {
         return appointmentDate.equals(LocalDate.now());
     }
 
-    public boolean canBeCancelled() {
-        LocalDateTime appointmentDateTime = appointmentDate.atTime(startTime);
-        LocalDateTime cancellationDeadline = appointmentDateTime.minusHours(24);
-        return LocalDateTime.now().isBefore(cancellationDeadline) &&
-               (status.equals(AppointmentStatus.PENDING) || 
-                status.equals(AppointmentStatus.CONFIRMED));
+   public boolean canBeCancelled() {
+    return status.equals(AppointmentStatus.CONFIRMED) ||
+           status.equals(AppointmentStatus.CHECKED_IN);
     }
 
     public boolean canBeRescheduled() {

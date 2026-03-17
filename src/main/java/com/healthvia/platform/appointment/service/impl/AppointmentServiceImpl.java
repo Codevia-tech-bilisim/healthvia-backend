@@ -173,7 +173,9 @@ public class AppointmentServiceImpl implements AppointmentService {
             .startTime(slot.getStartTime())
             .endTime(slot.getEndTime())
             .durationMinutes(slot.getDurationMinutes())
-            .status(AppointmentStatus.PENDING)
+            .status(AppointmentStatus.CONFIRMED)
+            .confirmedAt(LocalDateTime.now())
+            .confirmedBy("SYSTEM")
             .consultationType(Appointment.ConsultationType.IN_PERSON)
             .treatmentTypeId(treatmentTypeId)
             .chiefComplaint(chiefComplaint)
@@ -220,15 +222,20 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.getStartTime()
         );
         
-        long hoursUntilAppointment = ChronoUnit.HOURS.between(LocalDateTime.now(), appointmentDateTime);
-        if (hoursUntilAppointment < 24) {
-            throw new AppointmentExceptions.CancellationDeadlineException(hoursUntilAppointment);
+        boolean isCancelledByDoctor = appointment.getDoctorId().equals(cancelledBy)
+            || "admin".equalsIgnoreCase(cancelledBy);
+
+        if (!isCancelledByDoctor) {
+            long hoursUntilAppointment = ChronoUnit.HOURS.between(LocalDateTime.now(), appointmentDateTime);
+            if (hoursUntilAppointment < 24) {
+                throw new AppointmentExceptions.CancellationDeadlineException(hoursUntilAppointment);
+            }
         }
 
         log.info("Cancelling appointment: {} by: {}", appointmentId, cancelledBy);
 
-        // Entity içi iptal kontrolü
-        if (!appointment.canBeCancelled()) {
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
+            appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new RuntimeException("Bu randevu iptal edilemez");
         }
 
@@ -532,7 +539,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .startTime(request.getStartTime())
                 .endTime(endTime)
                 .durationMinutes(request.getDurationMinutes())
-                .status(AppointmentStatus.PENDING)
+                .status(AppointmentStatus.CONFIRMED)
+                .confirmedAt(LocalDateTime.now())
+                .confirmedBy("SYSTEM")
                 .consultationType(ConsultationType.VIDEO_CALL)
                 .treatmentTypeId(request.getTreatmentTypeId())
                 .chiefComplaint(request.getChiefComplaint())
