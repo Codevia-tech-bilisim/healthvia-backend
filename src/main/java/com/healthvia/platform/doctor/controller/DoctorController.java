@@ -129,6 +129,14 @@ public class DoctorController {
         Doctor updatedDoctor = doctorService.addCertification(doctorId, certification);
         return ApiResponse.success(DoctorDto.fromEntity(updatedDoctor), "Certification added successfully");
     }
+    @PatchMapping("/me/accepting-patients")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ApiResponse<DoctorDto> setAcceptingPatients(
+            @RequestParam boolean accepting) {
+        String doctorId = SecurityUtils.getCurrentUserId();
+        Doctor updated = doctorService.setAcceptingPatients(doctorId, accepting);
+        return ApiResponse.success(DoctorDto.fromEntity(updated), "Güncellendi");
+    }
 
     // === ADMIN ENDPOINTS ===
     

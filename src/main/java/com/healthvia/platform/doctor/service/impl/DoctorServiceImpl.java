@@ -183,6 +183,13 @@ public class DoctorServiceImpl implements DoctorService {
         return doctorRepository.findDoctorsWithHighCompletionRate(minRate);
     }
 
+    @Override
+    public Doctor setAcceptingPatients(String doctorId, boolean isAccepting) {
+        Doctor doctor = findByIdOrThrow(doctorId);
+        doctor.setIsAcceptingNewPatients(isAccepting);
+        return doctorRepository.save(doctor);
+    }
+
     // === VALIDATION ===
 
     @Override

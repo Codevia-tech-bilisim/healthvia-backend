@@ -41,6 +41,7 @@ public interface DoctorService {
     Doctor updateAppointmentStatistics(String doctorId, int totalAppointments, 
                                       int completedAppointments, int cancelledAppointments);
     List<Doctor> findDoctorsWithHighCompletionRate(double minRate);
+    Doctor setAcceptingPatients(String doctorId, boolean accepting);
     
     // === VALIDATION ===
     boolean isDiplomaNumberAvailable(String diplomaNumber);
