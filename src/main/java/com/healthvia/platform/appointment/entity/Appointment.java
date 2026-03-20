@@ -150,6 +150,19 @@ public class Appointment extends BaseEntity {
     @Field("meeting_info")
     private MeetingInfo meetingInfo;
 
+    // === OTEL & UÇUŞ REZERVASYON BİLGİLERİ ===
+    @Field("hotel_booking_id")
+    private String hotelBookingId;
+
+    @Field("hotel_booking_name")
+    private String hotelBookingName;
+
+    @Field("flight_booking_id")
+    private String flightBookingId;
+
+    @Field("flight_booking_details")
+    private String flightBookingDetails;
+
     // === İPTAL VE ERTELEMELer ===
     @Field("cancelled_at")
     private LocalDateTime cancelledAt;
