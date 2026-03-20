@@ -60,6 +60,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/treatments/public/**").permitAll()      // OpenAPI docs (future)
                 .requestMatchers("/api/v1/leads/public/**").permitAll()
                 .requestMatchers("/api/v1/leads/webhook/**").permitAll()
+                .requestMatchers("/api/v1/slots/available").permitAll()
+                .requestMatchers("/api/v1/slots/available/range").permitAll()
+                .requestMatchers("/api/v1/bookings/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
