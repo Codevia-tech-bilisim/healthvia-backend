@@ -25,6 +25,8 @@ import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.appointment.service.TimeSlotService;
 import com.healthvia.platform.common.exception.AppointmentExceptions;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.doctor.entity.Doctor;
+import com.healthvia.platform.doctor.repository.DoctorRepository;
 import com.healthvia.platform.zoom.dto.ZoomMeetingRequest;
 import com.healthvia.platform.zoom.dto.ZoomMeetingResponse;
 import com.healthvia.platform.zoom.service.ZoomService;
@@ -41,6 +43,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final TimeSlotService timeSlotService;
     private final ZoomService zoomService;
+    private final DoctorRepository doctorRepository;
 
     // === TEMEL CRUD İŞLEMLERİ ===
 
@@ -165,7 +168,14 @@ public class AppointmentServiceImpl implements AppointmentService {
             }
         }
 
-        // 3. Randevu oluştur
+        // 3. Fetch doctor's consultation fee
+        Doctor doctor = doctorRepository.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+        java.math.BigDecimal fee = doctor.getConsultationFee() != null
+            ? doctor.getConsultationFee() : java.math.BigDecimal.ZERO;
+        String doctorCurrency = "USD";
+
+        // 4. Randevu oluştur
         Appointment appointment = Appointment.builder()
             .patientId(patientId)
             .doctorId(doctorId)
@@ -179,8 +189,9 @@ public class AppointmentServiceImpl implements AppointmentService {
             .consultationType(Appointment.ConsultationType.IN_PERSON)
             .treatmentTypeId(treatmentTypeId)
             .chiefComplaint(chiefComplaint)
-            .consultationFee(java.math.BigDecimal.ZERO)
-            .currency("TRY")
+            .consultationFee(fee)
+            .totalPrice(fee)
+            .currency(doctorCurrency)
             .paymentStatus(Appointment.PaymentStatus.PENDING)
             .smsNotificationsEnabled(true)
             .emailNotificationsEnabled(true)
@@ -531,7 +542,14 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         ZoomMeetingResponse zoomResponse = zoomService.createMeeting(zoomRequest);
 
-        // 4. Appointment oluştur
+        // 4. Fetch doctor's consultation fee
+        Doctor videoDoctor = doctorRepository.findById(request.getDoctorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
+        java.math.BigDecimal videoFee = videoDoctor.getConsultationFee() != null
+                ? videoDoctor.getConsultationFee() : java.math.BigDecimal.ZERO;
+        String videoCurrency = "USD";
+
+        // 5. Appointment oluştur
         Appointment appointment = Appointment.builder()
                 .patientId(request.getPatientId())
                 .doctorId(request.getDoctorId())
@@ -545,8 +563,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .consultationType(ConsultationType.VIDEO_CALL)
                 .treatmentTypeId(request.getTreatmentTypeId())
                 .chiefComplaint(request.getChiefComplaint())
-                .consultationFee(java.math.BigDecimal.ZERO)
-                .currency("TRY")
+                .consultationFee(videoFee)
+                .totalPrice(videoFee)
+                .currency(videoCurrency)
                 .paymentStatus(Appointment.PaymentStatus.PENDING)
                 .isFollowUp(request.getIsFollowUp())
                 .originalAppointmentId(request.getOriginalAppointmentId())

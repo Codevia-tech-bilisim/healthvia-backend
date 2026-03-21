@@ -112,6 +112,18 @@ public class Appointment extends BaseEntity {
     @Field("payment_id")
     private String paymentId;
 
+    @DecimalMin(value = "0.0", message = "Hotel price cannot be negative")
+    @Field("hotel_price")
+    private BigDecimal hotelPrice;
+
+    @DecimalMin(value = "0.0", message = "Flight price cannot be negative")
+    @Field("flight_price")
+    private BigDecimal flightPrice;
+
+    @DecimalMin(value = "0.0", message = "Total price cannot be negative")
+    @Field("total_price")
+    private BigDecimal totalPrice;
+
     // === RANDEVU SÜRECI ===
     @Field("confirmed_at")
     private LocalDateTime confirmedAt;
