@@ -48,6 +48,10 @@ public interface DoctorService {
     boolean isMedicalLicenseNumberAvailable(String medicalLicenseNumber);
     boolean canTreatCondition(String doctorId, String condition);
     
+    // === PAYLOAD CMS SYNC ===
+    Doctor syncFromPayload(String doctorId, String hospitalName, String primarySpecialty,
+                           String shortBio, Integer yearsOfExperience);
+
     // === ANALYTICS ===
     long countVerifiedDoctors();
     long countDoctorsBySpecialty(String specialty);

@@ -291,5 +291,35 @@ public class DoctorServiceImpl implements DoctorService {
         if (newDoctor.getIsAvailableForEmergencies() != null) {
             existingDoctor.setIsAvailableForEmergencies(newDoctor.getIsAvailableForEmergencies());
         }
+
+        // Hospital & Clinic
+        if (newDoctor.getCurrentHospital() != null) {
+            existingDoctor.setCurrentHospital(newDoctor.getCurrentHospital());
+        }
+        if (newDoctor.getCurrentClinic() != null) {
+            existingDoctor.setCurrentClinic(newDoctor.getCurrentClinic());
+        }
+    }
+
+    @Override
+    public Doctor syncFromPayload(String doctorId, String hospitalName, String primarySpecialty,
+                                   String shortBio, Integer yearsOfExperience) {
+        Doctor doctor = findByIdOrThrow(doctorId);
+
+        if (hospitalName != null) {
+            doctor.setCurrentHospital(hospitalName);
+        }
+        if (primarySpecialty != null) {
+            doctor.setPrimarySpecialty(primarySpecialty);
+        }
+        if (shortBio != null) {
+            doctor.setBiography(shortBio);
+        }
+        if (yearsOfExperience != null) {
+            doctor.setYearsOfExperience(yearsOfExperience);
+        }
+
+        log.info("Synced doctor {} from Payload CMS", doctorId);
+        return doctorRepository.save(doctor);
     }
 }

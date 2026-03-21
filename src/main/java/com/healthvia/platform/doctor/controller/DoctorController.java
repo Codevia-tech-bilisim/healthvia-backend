@@ -25,6 +25,7 @@ import com.healthvia.platform.doctor.dto.DoctorDto;
 import com.healthvia.platform.doctor.entity.Doctor;
 import com.healthvia.platform.doctor.service.DoctorService;
 
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -138,8 +139,22 @@ public class DoctorController {
         return ApiResponse.success(DoctorDto.fromEntity(updated), "Güncellendi");
     }
 
+    // === PAYLOAD CMS SYNC ENDPOINT ===
+
+    @PatchMapping("/{id}/sync")
+    @Operation(summary = "Sync doctor from Payload CMS", description = "Updates doctor fields from Payload CMS admin panel")
+    public ApiResponse<DoctorDto> syncFromPayload(
+            @PathVariable String id,
+            @RequestParam(required = false) String hospitalName,
+            @RequestParam(required = false) String primarySpecialty,
+            @RequestParam(required = false) String shortBio,
+            @RequestParam(required = false) Integer yearsOfExperience) {
+        Doctor updated = doctorService.syncFromPayload(id, hospitalName, primarySpecialty, shortBio, yearsOfExperience);
+        return ApiResponse.success(DoctorDto.fromEntity(updated), "Doctor synced from Payload CMS");
+    }
+
     // === ADMIN ENDPOINTS ===
-    
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Page<DoctorDto>> getAllDoctors(@PageableDefault(size = 20) Pageable pageable) {
