@@ -306,16 +306,16 @@ public class DoctorServiceImpl implements DoctorService {
                                    String shortBio, Integer yearsOfExperience) {
         Doctor doctor = findByIdOrThrow(doctorId);
 
-        if (hospitalName != null) {
-            doctor.setCurrentHospital(hospitalName);
+        if (hospitalName != null && !hospitalName.isBlank() && hospitalName.length() <= 200) {
+            doctor.setCurrentHospital(hospitalName.trim());
         }
-        if (primarySpecialty != null) {
-            doctor.setPrimarySpecialty(primarySpecialty);
+        if (primarySpecialty != null && !primarySpecialty.isBlank()) {
+            doctor.setPrimarySpecialty(primarySpecialty.trim());
         }
-        if (shortBio != null) {
-            doctor.setBiography(shortBio);
+        if (shortBio != null && !shortBio.isBlank() && shortBio.length() <= 2000) {
+            doctor.setBiography(shortBio.trim());
         }
-        if (yearsOfExperience != null) {
+        if (yearsOfExperience != null && yearsOfExperience >= 0 && yearsOfExperience <= 70) {
             doctor.setYearsOfExperience(yearsOfExperience);
         }
 
