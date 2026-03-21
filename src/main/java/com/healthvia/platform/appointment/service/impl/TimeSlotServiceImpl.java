@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,8 @@ import com.healthvia.platform.appointment.entity.TimeSlot.SlotStatus;
 import com.healthvia.platform.appointment.repository.TimeSlotRepository;
 import com.healthvia.platform.appointment.service.TimeSlotService;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.doctor.entity.Doctor;
+import com.healthvia.platform.doctor.service.DoctorService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TimeSlotServiceImpl implements TimeSlotService {
 
     private final TimeSlotRepository timeSlotRepository;
+    private final DoctorService doctorService;
 
     // === TEMEL CRUD İŞLEMLERİ ===
 
@@ -74,91 +78,132 @@ public class TimeSlotServiceImpl implements TimeSlotService {
 
     @Override
     public List<TimeSlot> generateSlotsForDay(String doctorId, LocalDate date, Integer durationMinutes) {
-        log.info("Generating slots for doctor: {} on date: {} with duration: {}", 
+        log.info("Generating slots for doctor: {} on date: {} with duration: {}",
                 doctorId, date, durationMinutes);
-    
+
         // Mevcut slotları kontrol et
         List<TimeSlot> existingSlots = timeSlotRepository.findByDoctorIdAndDateAndDeletedFalse(doctorId, date);
-        if (!existingSlots.isEmpty()) {
-            log.warn("Slots already exist for doctor {} on date {}", doctorId, date);
+
+        // Sadece aktif (AVAILABLE veya BOOKED) slotlar varsa skip et
+        List<TimeSlot> activeSlots = existingSlots.stream()
+            .filter(s -> s.getStatus() == SlotStatus.AVAILABLE || s.getStatus() == SlotStatus.BOOKED)
+            .toList();
+        if (!activeSlots.isEmpty()) {
+            log.warn("Active slots already exist for doctor {} on date {}", doctorId, date);
             return existingSlots;
         }
-    
-        // Doktor çalışma saatlerini al (gelecekte doktor entity'sinden gelecek)
-        LocalTime workStart = LocalTime.of(9, 0);   // 09:00
-        LocalTime workEnd = LocalTime.of(17, 0);    // 17:00
-        LocalTime lunchStart = LocalTime.of(12, 0); // 12:00 - öğle molası başlangıcı
-        LocalTime lunchEnd = LocalTime.of(13, 0);   // 13:00 - öğle molası bitişi
-        
+
+        // EXPIRED slotlar varsa temizle
+        if (!existingSlots.isEmpty()) {
+            log.info("Cleaning up {} expired/inactive slots for doctor {} on date {}", existingSlots.size(), doctorId, date);
+            existingSlots.forEach(s -> s.markAsDeleted("REGENERATE"));
+            timeSlotRepository.saveAll(existingSlots);
+        }
+
+        // Doktor çalışma saatlerini DB'den oku
+        Doctor doctor = doctorService.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+
+        LocalTime workStart = doctor.getWorkingHoursStart() != null ? doctor.getWorkingHoursStart() : LocalTime.of(9, 0);
+        LocalTime workEnd = doctor.getWorkingHoursEnd() != null ? doctor.getWorkingHoursEnd() : LocalTime.of(17, 0);
+        LocalTime lunchStart = doctor.getLunchBreakStart() != null ? doctor.getLunchBreakStart() : LocalTime.of(12, 0);
+        LocalTime lunchEnd = doctor.getLunchBreakEnd() != null ? doctor.getLunchBreakEnd() : LocalTime.of(13, 0);
+        int bufferMinutes = doctor.getAppointmentBufferMinutes() != null ? doctor.getAppointmentBufferMinutes() : 5;
+
         List<TimeSlot> slots = new ArrayList<>();
-        
-        // Sabah slotları (09:00 - 12:00)
+
+        // Sabah slotları (workStart - lunchStart)
         LocalTime currentTime = workStart;
-        while (currentTime.plusMinutes(durationMinutes).isBefore(lunchStart) || 
+        while (currentTime.plusMinutes(durationMinutes).isBefore(lunchStart) ||
                currentTime.plusMinutes(durationMinutes).equals(lunchStart)) {
-            
+
             LocalTime slotEnd = currentTime.plusMinutes(durationMinutes);
             slots.add(createSlot(doctorId, date, currentTime, slotEnd, durationMinutes));
-            currentTime = currentTime.plusMinutes(durationMinutes + 5); // 5 dk buffer
+            currentTime = currentTime.plusMinutes(durationMinutes + bufferMinutes);
         }
-        
-        // Öğleden sonra slotları (13:00 - 17:00)
+
+        // Öğleden sonra slotları (lunchEnd - workEnd)
         currentTime = lunchEnd;
-        while (currentTime.plusMinutes(durationMinutes).isBefore(workEnd) || 
+        while (currentTime.plusMinutes(durationMinutes).isBefore(workEnd) ||
                currentTime.plusMinutes(durationMinutes).equals(workEnd)) {
-            
+
             LocalTime slotEnd = currentTime.plusMinutes(durationMinutes);
             slots.add(createSlot(doctorId, date, currentTime, slotEnd, durationMinutes));
-            currentTime = currentTime.plusMinutes(durationMinutes + 5); // 5 dk buffer
+            currentTime = currentTime.plusMinutes(durationMinutes + bufferMinutes);
         }
-    
+
         // Slotları kaydet
         List<TimeSlot> savedSlots = timeSlotRepository.saveAll(slots);
-        log.info("Generated {} slots for doctor {} on {} (morning: {}, afternoon: {})", 
-                savedSlots.size(), doctorId, date, 
+        log.info("Generated {} slots for doctor {} on {} (morning: {}, afternoon: {})",
+                savedSlots.size(), doctorId, date,
                 savedSlots.stream().filter(s -> s.getStartTime().isBefore(lunchStart)).count(),
                 savedSlots.stream().filter(s -> s.getStartTime().isAfter(lunchStart)).count());
-        
+
         return savedSlots;
     }
 
     @Override
     public List<TimeSlot> generateSlotsForWeek(String doctorId, LocalDate startDate, Integer durationMinutes) {
         log.info("Generating weekly slots for doctor: {} starting from: {}", doctorId, startDate);
-        
+
+        Doctor doctor = doctorService.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+        Set<String> workingDays = doctor.getWorkingDays();
+
         List<TimeSlot> allSlots = new ArrayList<>();
-        
+
         for (int i = 0; i < 7; i++) {
             LocalDate currentDate = startDate.plusDays(i);
-            
-            // Hafta sonu kontrolü - sadece hafta içi slot oluştur
-            DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
-            if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-                List<TimeSlot> dailySlots = generateSlotsForDay(doctorId, currentDate, durationMinutes);
-                allSlots.addAll(dailySlots);
+            String dayName = currentDate.getDayOfWeek().name(); // MONDAY, TUESDAY, ...
+
+            if (workingDays != null && !workingDays.isEmpty()) {
+                if (!workingDays.contains(dayName)) continue;
+            } else {
+                // Fallback: hafta sonu hariç
+                DayOfWeek dow = currentDate.getDayOfWeek();
+                if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) continue;
             }
+
+            List<TimeSlot> dailySlots = generateSlotsForDay(doctorId, currentDate, durationMinutes);
+            allSlots.addAll(dailySlots);
         }
-        
+
         return allSlots;
     }
 
     @Override
     public List<TimeSlot> generateSlotsForMonth(String doctorId, LocalDate startDate, Integer durationMinutes) {
         log.info("Generating monthly slots for doctor: {} starting from: {}", doctorId, startDate);
-        
+
+        Doctor doctor = doctorService.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+        Set<String> workingDays = doctor.getWorkingDays();
+
         List<TimeSlot> allSlots = new ArrayList<>();
         LocalDate endDate = startDate.plusMonths(1);
-        
+
         LocalDate currentDate = startDate;
         while (currentDate.isBefore(endDate)) {
-            DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
-            if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-                List<TimeSlot> dailySlots = generateSlotsForDay(doctorId, currentDate, durationMinutes);
-                allSlots.addAll(dailySlots);
+            String dayName = currentDate.getDayOfWeek().name();
+
+            if (workingDays != null && !workingDays.isEmpty()) {
+                if (!workingDays.contains(dayName)) {
+                    currentDate = currentDate.plusDays(1);
+                    continue;
+                }
+            } else {
+                DayOfWeek dow = currentDate.getDayOfWeek();
+                if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) {
+                    currentDate = currentDate.plusDays(1);
+                    continue;
+                }
             }
+
+            List<TimeSlot> dailySlots = generateSlotsForDay(doctorId, currentDate, durationMinutes);
+            allSlots.addAll(dailySlots);
             currentDate = currentDate.plusDays(1);
         }
-        
+
         return allSlots;
     }
 
