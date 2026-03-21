@@ -42,6 +42,9 @@ public class Appointment extends BaseEntity {
     @Indexed
     private String doctorId;
 
+    @Field("doctor_name")
+    private String doctorName;
+
     @NotNull(message = "Randevu tarihi boş olamaz")
     @Field("appointment_date")
     @Indexed

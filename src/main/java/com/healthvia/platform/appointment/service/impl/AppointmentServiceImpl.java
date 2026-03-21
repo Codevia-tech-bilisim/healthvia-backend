@@ -175,10 +175,17 @@ public class AppointmentServiceImpl implements AppointmentService {
             ? doctor.getConsultationFee() : java.math.BigDecimal.ZERO;
         String doctorCurrency = "USD";
 
-        // 4. Randevu oluştur
+        // 4. Build doctor display name
+        String displayName = (doctor.getFirstName() != null ? doctor.getFirstName() : "")
+            + " " + (doctor.getLastName() != null ? doctor.getLastName() : "");
+        displayName = displayName.trim();
+        if (displayName.isEmpty()) displayName = "Doctor";
+
+        // 5. Randevu oluştur
         Appointment appointment = Appointment.builder()
             .patientId(patientId)
             .doctorId(doctorId)
+            .doctorName(displayName)
             .appointmentDate(slot.getDate())
             .startTime(slot.getStartTime())
             .endTime(slot.getEndTime())
@@ -549,10 +556,17 @@ public class AppointmentServiceImpl implements AppointmentService {
                 ? videoDoctor.getConsultationFee() : java.math.BigDecimal.ZERO;
         String videoCurrency = "USD";
 
-        // 5. Appointment oluştur
+        // 5. Build doctor display name
+        String videoDisplayName = (videoDoctor.getFirstName() != null ? videoDoctor.getFirstName() : "")
+                + " " + (videoDoctor.getLastName() != null ? videoDoctor.getLastName() : "");
+        videoDisplayName = videoDisplayName.trim();
+        if (videoDisplayName.isEmpty()) videoDisplayName = "Doctor";
+
+        // 6. Appointment oluştur
         Appointment appointment = Appointment.builder()
                 .patientId(request.getPatientId())
                 .doctorId(request.getDoctorId())
+                .doctorName(videoDisplayName)
                 .appointmentDate(request.getAppointmentDate())
                 .startTime(request.getStartTime())
                 .endTime(endTime)
