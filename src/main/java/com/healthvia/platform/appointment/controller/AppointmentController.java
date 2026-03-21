@@ -138,10 +138,16 @@ public class AppointmentController {
     @PatchMapping("/{id}/cancel")
     public ApiResponse<Appointment> cancelAppointment(
             @PathVariable String id,
-            @RequestParam String cancelledBy,
-            @RequestParam(required = false) String reason) {
-        
-        Appointment appointment = appointmentService.cancelAppointment(id, cancelledBy, reason);
+            @RequestParam(required = false) String cancelledBy,
+            @RequestParam(required = false) String reason,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        String canceller = cancelledBy;
+        if (canceller == null || canceller.isBlank()) {
+            canceller = currentUser != null ? currentUser.getId() : "PATIENT";
+        }
+
+        Appointment appointment = appointmentService.cancelAppointment(id, canceller, reason);
         return ApiResponse.success(appointment, "Randevu başarıyla iptal edildi");
     }
 

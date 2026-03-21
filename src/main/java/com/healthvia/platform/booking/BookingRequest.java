@@ -1,5 +1,7 @@
 package com.healthvia.platform.booking;
 
+import java.math.BigDecimal;
+
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -9,8 +11,10 @@ public class BookingRequest {
     private String appointmentId;
     private String hotelId;
     private String hotelName;
+    private BigDecimal hotelPrice;
     private String flightId;
     private String flightDetails;
+    private BigDecimal flightPrice;
     @NotBlank
     private String paymentToken;
 }

@@ -36,15 +36,28 @@ public class BookingController {
             return ApiResponse.error("This appointment does not belong to you");
         }
 
-        // Save hotel/flight info
+        // Save hotel/flight info and prices
         if (req.getHotelId() != null) {
             apt.setHotelBookingId(req.getHotelId());
             apt.setHotelBookingName(req.getHotelName());
+            if (req.getHotelPrice() != null) {
+                apt.setHotelPrice(req.getHotelPrice());
+            }
         }
         if (req.getFlightId() != null) {
             apt.setFlightBookingId(req.getFlightId());
             apt.setFlightBookingDetails(req.getFlightDetails());
+            if (req.getFlightPrice() != null) {
+                apt.setFlightPrice(req.getFlightPrice());
+            }
         }
+
+        // Recalculate total price
+        java.math.BigDecimal total = apt.getConsultationFee() != null
+            ? apt.getConsultationFee() : java.math.BigDecimal.ZERO;
+        if (apt.getHotelPrice() != null) total = total.add(apt.getHotelPrice());
+        if (apt.getFlightPrice() != null) total = total.add(apt.getFlightPrice());
+        apt.setTotalPrice(total);
 
         // Fake payment processing
         if ("tok_test_success".equals(req.getPaymentToken())) {
