@@ -24,6 +24,7 @@ import com.healthvia.platform.appointment.repository.AppointmentRepository;
 import com.healthvia.platform.appointment.service.AppointmentService;
 import com.healthvia.platform.appointment.service.TimeSlotService;
 import com.healthvia.platform.common.exception.AppointmentExceptions;
+import com.healthvia.platform.common.exception.BusinessException;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
 import com.healthvia.platform.doctor.entity.Doctor;
 import com.healthvia.platform.doctor.repository.DoctorRepository;
