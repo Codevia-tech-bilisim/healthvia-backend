@@ -56,6 +56,9 @@ public interface TimeSlotRepository extends MongoRepository<TimeSlot, String> {
     List<TimeSlot> findOverlappingSlots(String doctorId, LocalDate date, 
                                        LocalTime startTime, LocalTime endTime);
 
+    // === RANDEVU İLE SLOT BULMA ===
+    Optional<TimeSlot> findByAppointmentIdAndDeletedFalse(String appointmentId);
+
     // === TEMİZLEME SORGULARI ===
     List<TimeSlot> findByDateBeforeAndDeletedFalse(LocalDate date);
     

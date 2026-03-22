@@ -26,6 +26,8 @@ import com.healthvia.platform.appointment.service.TimeSlotService;
 import com.healthvia.platform.common.exception.AppointmentExceptions;
 import com.healthvia.platform.common.exception.BusinessException;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.appointment.repository.TimeSlotRepository;
+import com.healthvia.platform.booking.IyzicoPaymentService;
 import com.healthvia.platform.doctor.entity.Doctor;
 import com.healthvia.platform.doctor.repository.DoctorRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final TimeSlotService timeSlotService;
+    private final TimeSlotRepository timeSlotRepository;
+    private final IyzicoPaymentService iyzicoPaymentService;
     private final DoctorRepository doctorRepository;
 
     // === TEMEL CRUD İŞLEMLERİ ===
@@ -255,6 +259,31 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         // İptal işlemi
         appointment.cancel(cancelledBy, reason);
+
+        // iyzico iade işlemi
+        if (appointment.getPaymentId() != null
+                && appointment.getPaymentStatus() == Appointment.PaymentStatus.PAID) {
+            try {
+                IyzicoPaymentService.PaymentResult refundResult =
+                        iyzicoPaymentService.refundPayment(appointment.getPaymentId(), appointmentId);
+                if (refundResult.success()) {
+                    appointment.setPaymentStatus(Appointment.PaymentStatus.REFUNDED);
+                    log.info("Refund successful for appointment: {}", appointmentId);
+                } else {
+                    log.warn("Refund failed for appointment: {}, error: {}", appointmentId, refundResult.errorMessage());
+                }
+            } catch (Exception e) {
+                log.error("Refund error for appointment: {}", appointmentId, e);
+            }
+        }
+
+        // Slot'u serbest bırak
+        timeSlotRepository.findByAppointmentIdAndDeletedFalse(appointmentId)
+                .ifPresent(slot -> {
+                    slot.makeAvailable();
+                    timeSlotRepository.save(slot);
+                    log.info("Slot released for cancelled appointment: {}", appointmentId);
+                });
 
         // Kaydet ve geri dön
         return appointmentRepository.save(appointment);
@@ -587,6 +616,18 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment = appointmentRepository.save(appointment);
             log.info("Video appointment created successfully with ID: {} and Jitsi room: {}",
                     appointment.getId(), roomName);
+
+            // Mark matching TimeSlot as booked (if exists)
+            List<TimeSlot> overlapping = timeSlotRepository.findOverlappingSlots(
+                    request.getDoctorId(), request.getAppointmentDate(),
+                    request.getStartTime(), endTime);
+            for (TimeSlot slot : overlapping) {
+                if (slot.getStatus() == SlotStatus.AVAILABLE) {
+                    slot.book(appointment.getId());
+                    timeSlotRepository.save(slot);
+                    log.info("Slot {} marked as booked for video appointment {}", slot.getId(), appointment.getId());
+                }
+            }
 
             return VideoAppointmentResponse.fromAppointment(appointment);
         } catch (BusinessException | ResourceNotFoundException e) {

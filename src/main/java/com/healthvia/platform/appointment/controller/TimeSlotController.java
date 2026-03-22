@@ -159,7 +159,7 @@ public class TimeSlotController {
     // === ADMIN ENDPOINTS (Admin için slot yönetimi) ===
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     public ApiResponse<Void> deleteSlot(
             @PathVariable String id,
             @RequestParam String deletedBy) {
