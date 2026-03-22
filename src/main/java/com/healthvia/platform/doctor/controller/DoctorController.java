@@ -156,14 +156,19 @@ public class DoctorController {
             @RequestParam(required = false) String hospitalName,
             @RequestParam(required = false) String primarySpecialty,
             @RequestParam(required = false) String shortBio,
-            @RequestParam(required = false) Integer yearsOfExperience) {
+            @RequestParam(required = false) Integer yearsOfExperience,
+            @RequestParam(required = false) BigDecimal consultationFee,
+            @RequestParam(required = false) Double rating,
+            @RequestParam(required = false) Integer reviewCount,
+            @RequestParam(required = false) String languages) {
 
         // Validate API key — only Payload CMS should call this endpoint
         if (apiKey == null || !apiKey.equals(payloadSyncApiKey)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid or missing API key");
         }
 
-        Doctor updated = doctorService.syncFromPayload(id, hospitalName, primarySpecialty, shortBio, yearsOfExperience);
+        Doctor updated = doctorService.syncFromPayload(id, hospitalName, primarySpecialty, shortBio,
+                yearsOfExperience, consultationFee, rating, reviewCount, languages);
         return ApiResponse.success(DoctorDto.fromEntity(updated), "Doctor synced from Payload CMS");
     }
 

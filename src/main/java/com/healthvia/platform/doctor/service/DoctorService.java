@@ -50,7 +50,9 @@ public interface DoctorService {
     
     // === PAYLOAD CMS SYNC ===
     Doctor syncFromPayload(String doctorId, String hospitalName, String primarySpecialty,
-                           String shortBio, Integer yearsOfExperience);
+                           String shortBio, Integer yearsOfExperience,
+                           java.math.BigDecimal consultationFee, Double rating,
+                           Integer reviewCount, String languages);
 
     // === ANALYTICS ===
     long countVerifiedDoctors();
