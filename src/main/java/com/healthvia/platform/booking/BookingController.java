@@ -5,6 +5,8 @@ import com.healthvia.platform.appointment.repository.AppointmentRepository;
 import com.healthvia.platform.auth.security.UserPrincipal;
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.user.entity.User;
+import com.healthvia.platform.user.repository.UserRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,7 @@ public class BookingController {
 
     private final AppointmentRepository appointmentRepository;
     private final IyzicoPaymentService iyzicoPaymentService;
+    private final UserRepository userRepository;
 
     @PostMapping
     @PreAuthorize("hasRole('PATIENT')")
@@ -75,11 +78,17 @@ public class BookingController {
             clientIp = httpRequest.getRemoteAddr();
         }
 
+        // Fetch user phone for iyzico buyer info
+        String buyerPhone = userRepository.findById(principal.getId())
+                .map(User::getPhone)
+                .orElse(null);
+
         IyzicoPaymentService.PaymentResult paymentResult = iyzicoPaymentService.processPayment(
                 req,
                 principal.getFullName(),
                 principal.getEmail(),
                 principal.getId(),
+                buyerPhone,
                 total,
                 apt.getId(),
                 clientIp

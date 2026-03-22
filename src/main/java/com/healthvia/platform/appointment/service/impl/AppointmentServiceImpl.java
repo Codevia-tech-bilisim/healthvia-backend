@@ -508,83 +508,93 @@ public class AppointmentServiceImpl implements AppointmentService {
         log.info("Creating video appointment for patient: {} with doctor: {}",
                 request.getPatientId(), request.getDoctorId());
 
-        // 1. Tarih validasyonu
-        LocalDateTime appointmentDateTime = request.getAppointmentDate().atTime(request.getStartTime());
-        if (appointmentDateTime.isBefore(LocalDateTime.now())) {
-            throw new AppointmentExceptions.PastDateAppointmentException();
+        try {
+            // 1. Tarih validasyonu
+            LocalDateTime appointmentDateTime = request.getAppointmentDate().atTime(request.getStartTime());
+            if (appointmentDateTime.isBefore(LocalDateTime.now())) {
+                throw new AppointmentExceptions.PastDateAppointmentException();
+            }
+
+            // 2. Çakışma kontrolü
+            int durationMins = request.getDurationMinutes() != null ? request.getDurationMinutes() : 30;
+            LocalTime endTime = request.getStartTime().plusMinutes(durationMins);
+            boolean hasConflict = hasConflictingAppointment(
+                    request.getDoctorId(),
+                    request.getAppointmentDate(),
+                    appointmentDateTime,
+                    request.getAppointmentDate().atTime(endTime)
+            );
+
+            if (hasConflict) {
+                throw new AppointmentExceptions.TimeSlotConflictException();
+            }
+
+            // 3. Fetch doctor's consultation fee
+            Doctor videoDoctor = doctorRepository.findById(request.getDoctorId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
+            java.math.BigDecimal videoFee = videoDoctor.getConsultationFee() != null
+                    ? videoDoctor.getConsultationFee() : java.math.BigDecimal.ZERO;
+            String videoCurrency = "USD";
+
+            // 4. Build doctor display name
+            String videoDisplayName = (videoDoctor.getFirstName() != null ? videoDoctor.getFirstName() : "")
+                    + " " + (videoDoctor.getLastName() != null ? videoDoctor.getLastName() : "");
+            videoDisplayName = videoDisplayName.trim();
+            if (videoDisplayName.isEmpty()) videoDisplayName = "Doctor";
+
+            // 5. Generate Jitsi room name for embedded video call
+            String roomName = "healthvia-" + request.getDoctorId() + "-" + request.getPatientId()
+                    + "-" + request.getAppointmentDate().toString().replace("-", "")
+                    + "-" + request.getStartTime().toString().replace(":", "");
+
+            // 6. Appointment oluştur (Jitsi embedded video - no Zoom)
+            Boolean followUp = request.getIsFollowUp() != null ? request.getIsFollowUp() : false;
+            Appointment appointment = Appointment.builder()
+                    .patientId(request.getPatientId())
+                    .doctorId(request.getDoctorId())
+                    .doctorName(videoDisplayName)
+                    .appointmentDate(request.getAppointmentDate())
+                    .startTime(request.getStartTime())
+                    .endTime(endTime)
+                    .durationMinutes(durationMins)
+                    .status(AppointmentStatus.CONFIRMED)
+                    .confirmedAt(LocalDateTime.now())
+                    .confirmedBy("SYSTEM")
+                    .consultationType(ConsultationType.VIDEO_CALL)
+                    .treatmentTypeId(request.getTreatmentTypeId())
+                    .chiefComplaint(request.getChiefComplaint())
+                    .consultationFee(videoFee)
+                    .totalPrice(videoFee)
+                    .currency(videoCurrency)
+                    .paymentStatus(Appointment.PaymentStatus.PENDING)
+                    .isFollowUp(followUp)
+                    .originalAppointmentId(request.getOriginalAppointmentId())
+                    .smsNotificationsEnabled(true)
+                    .emailNotificationsEnabled(true)
+                    .statusChangedAt(LocalDateTime.now())
+                    .meetingInfo(new MeetingInfo(
+                            roomName,
+                            "https://meet.jit.si/" + roomName,
+                            null,
+                            "JITSI",
+                            null,
+                            null,
+                            null
+                    ))
+                    .build();
+
+            appointment = appointmentRepository.save(appointment);
+            log.info("Video appointment created successfully with ID: {} and Jitsi room: {}",
+                    appointment.getId(), roomName);
+
+            return VideoAppointmentResponse.fromAppointment(appointment);
+        } catch (BusinessException | ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error creating video appointment for patient: {} with doctor: {}: {}",
+                    request.getPatientId(), request.getDoctorId(), e.getMessage(), e);
+            throw e;
         }
-
-        // 2. Çakışma kontrolü
-        LocalTime endTime = request.getStartTime().plusMinutes(request.getDurationMinutes());
-        boolean hasConflict = hasConflictingAppointment(
-                request.getDoctorId(),
-                request.getAppointmentDate(),
-                appointmentDateTime,
-                request.getAppointmentDate().atTime(endTime)
-        );
-
-        if (hasConflict) {
-            throw new RuntimeException("Bu saat diliminde başka bir randevu mevcut");
-        }
-
-        // 3. Fetch doctor's consultation fee
-        Doctor videoDoctor = doctorRepository.findById(request.getDoctorId())
-                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
-        java.math.BigDecimal videoFee = videoDoctor.getConsultationFee() != null
-                ? videoDoctor.getConsultationFee() : java.math.BigDecimal.ZERO;
-        String videoCurrency = "USD";
-
-        // 4. Build doctor display name
-        String videoDisplayName = (videoDoctor.getFirstName() != null ? videoDoctor.getFirstName() : "")
-                + " " + (videoDoctor.getLastName() != null ? videoDoctor.getLastName() : "");
-        videoDisplayName = videoDisplayName.trim();
-        if (videoDisplayName.isEmpty()) videoDisplayName = "Doctor";
-
-        // 5. Generate Jitsi room name for embedded video call
-        String roomName = "healthvia-" + request.getDoctorId() + "-" + request.getPatientId()
-                + "-" + request.getAppointmentDate().toString().replace("-", "")
-                + "-" + request.getStartTime().toString().replace(":", "");
-
-        // 6. Appointment oluştur (Jitsi embedded video - no Zoom)
-        Appointment appointment = Appointment.builder()
-                .patientId(request.getPatientId())
-                .doctorId(request.getDoctorId())
-                .doctorName(videoDisplayName)
-                .appointmentDate(request.getAppointmentDate())
-                .startTime(request.getStartTime())
-                .endTime(endTime)
-                .durationMinutes(request.getDurationMinutes())
-                .status(AppointmentStatus.CONFIRMED)
-                .confirmedAt(LocalDateTime.now())
-                .confirmedBy("SYSTEM")
-                .consultationType(ConsultationType.VIDEO_CALL)
-                .treatmentTypeId(request.getTreatmentTypeId())
-                .chiefComplaint(request.getChiefComplaint())
-                .consultationFee(videoFee)
-                .totalPrice(videoFee)
-                .currency(videoCurrency)
-                .paymentStatus(Appointment.PaymentStatus.PENDING)
-                .isFollowUp(request.getIsFollowUp())
-                .originalAppointmentId(request.getOriginalAppointmentId())
-                .smsNotificationsEnabled(true)
-                .emailNotificationsEnabled(true)
-                .statusChangedAt(LocalDateTime.now())
-                .meetingInfo(new MeetingInfo(
-                        roomName,
-                        "https://meet.jit.si/" + roomName,
-                        null,
-                        "JITSI",
-                        null,
-                        null,
-                        null
-                ))
-                .build();
-
-        appointment = appointmentRepository.save(appointment);
-        log.info("Video appointment created successfully with ID: {} and Jitsi room: {}",
-                appointment.getId(), roomName);
-
-        return VideoAppointmentResponse.fromAppointment(appointment);
     }
 
     @Override

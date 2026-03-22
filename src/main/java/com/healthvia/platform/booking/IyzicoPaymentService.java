@@ -45,6 +45,7 @@ public class IyzicoPaymentService {
                                          String buyerName,
                                          String buyerEmail,
                                          String buyerId,
+                                         String buyerPhone,
                                          BigDecimal totalPrice,
                                          String appointmentId,
                                          String ip) {
@@ -81,9 +82,10 @@ public class IyzicoPaymentService {
             buyer.setName(firstName);
             buyer.setSurname(lastName);
             buyer.setEmail(buyerEmail);
-            buyer.setIdentityNumber("00000000000");
+            buyer.setIdentityNumber("74300864791");
+            buyer.setGsmNumber(buyerPhone != null && !buyerPhone.isEmpty() ? buyerPhone : "+905350000000");
             buyer.setRegistrationAddress("Istanbul, Turkey");
-            buyer.setIp(ip != null ? ip : "127.0.0.1");
+            buyer.setIp(ip != null ? ip : "85.34.78.112");
             buyer.setCity("Istanbul");
             buyer.setCountry("Turkey");
             paymentRequest.setBuyer(buyer);
