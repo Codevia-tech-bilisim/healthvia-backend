@@ -15,6 +15,16 @@ public class BookingRequest {
     private String flightId;
     private String flightDetails;
     private BigDecimal flightPrice;
+
+    // iyzico card details
     @NotBlank
-    private String paymentToken;
+    private String cardNumber;
+    @NotBlank
+    private String expireMonth;
+    @NotBlank
+    private String expireYear;
+    @NotBlank
+    private String cvc;
+    @NotBlank
+    private String cardHolderName;
 }
