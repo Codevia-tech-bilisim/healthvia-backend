@@ -62,6 +62,9 @@ jobs:
             --allow-unauthenticated
           env_vars: |
             SPRING_PROFILES_ACTIVE=prod
+            IYZICO_API_KEY=${{ secrets.IYZICO_API_KEY }}
+            IYZICO_SECRET_KEY=${{ secrets.IYZICO_SECRET_KEY }}
+            IYZICO_BASE_URL=${{ secrets.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com' }}
           secrets: |
             MONGODB_URI=MONGODB_URI:latest
             JWT_SECRET=JWT_SECRET:latest
