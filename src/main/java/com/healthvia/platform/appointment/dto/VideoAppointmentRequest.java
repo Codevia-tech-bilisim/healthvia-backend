@@ -1,6 +1,6 @@
 package com.healthvia.platform.appointment.dto;
 
-import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -31,7 +31,7 @@ public class VideoAppointmentRequest {
     private String doctorId;
 
     @NotNull(message = "Randevu tarihi gereklidir")
-    @Future(message = "Randevu tarihi gelecekte olmalıdır")
+    @FutureOrPresent(message = "Randevu tarihi bugün veya gelecekte olmalıdır")
     private LocalDate appointmentDate;
 
     @NotNull(message = "Başlangıç saati gereklidir")
