@@ -3,6 +3,7 @@ package com.healthvia.platform.booking;
 import com.healthvia.platform.config.IyzicoProperties;
 import com.iyzipay.Options;
 import com.iyzipay.model.*;
+import com.iyzipay.request.CreateCancelRequest;
 import com.iyzipay.request.CreatePaymentRequest;
 
 import lombok.RequiredArgsConstructor;
@@ -128,6 +129,36 @@ public class IyzicoPaymentService {
         } catch (Exception e) {
             log.error("Payment processing error for appointment: {}", appointmentId, e);
             return new PaymentResult(false, null, "Payment processing error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Cancel/refund a payment via iyzico API.
+     */
+    public PaymentResult refundPayment(String paymentId, String conversationId) {
+        try {
+            CreateCancelRequest cancelRequest = new CreateCancelRequest();
+            cancelRequest.setLocale(Locale.TR.getValue());
+            cancelRequest.setConversationId(conversationId);
+            cancelRequest.setPaymentId(paymentId);
+
+            log.info("Processing iyzico refund for paymentId: {}", paymentId);
+
+            Cancel cancel = Cancel.create(cancelRequest, getOptions());
+
+            if ("success".equalsIgnoreCase(cancel.getStatus())) {
+                log.info("Refund successful for paymentId: {}", paymentId);
+                return new PaymentResult(true, paymentId, null);
+            } else {
+                String errorMsg = cancel.getErrorMessage() != null
+                        ? cancel.getErrorMessage()
+                        : "Refund failed";
+                log.warn("Refund failed for paymentId: {}, error: {}", paymentId, errorMsg);
+                return new PaymentResult(false, paymentId, errorMsg);
+            }
+        } catch (Exception e) {
+            log.error("Refund processing error for paymentId: {}", paymentId, e);
+            return new PaymentResult(false, paymentId, "Refund processing error: " + e.getMessage());
         }
     }
 

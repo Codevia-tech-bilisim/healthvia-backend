@@ -303,7 +303,9 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     public Doctor syncFromPayload(String doctorId, String hospitalName, String primarySpecialty,
-                                   String shortBio, Integer yearsOfExperience) {
+                                   String shortBio, Integer yearsOfExperience,
+                                   java.math.BigDecimal consultationFee, Double rating,
+                                   Integer reviewCount, String languages) {
         Doctor doctor = findByIdOrThrow(doctorId);
 
         if (hospitalName != null && !hospitalName.isBlank() && hospitalName.length() <= 200) {
@@ -317,6 +319,18 @@ public class DoctorServiceImpl implements DoctorService {
         }
         if (yearsOfExperience != null && yearsOfExperience >= 0 && yearsOfExperience <= 70) {
             doctor.setYearsOfExperience(yearsOfExperience);
+        }
+        if (consultationFee != null && consultationFee.compareTo(java.math.BigDecimal.ZERO) >= 0) {
+            doctor.setConsultationFee(consultationFee);
+        }
+        if (rating != null && rating >= 0.0 && rating <= 5.0) {
+            doctor.setAverageRating(rating);
+        }
+        if (reviewCount != null && reviewCount >= 0) {
+            doctor.setTotalReviews(reviewCount);
+        }
+        if (languages != null && !languages.isBlank()) {
+            doctor.setLanguagesSpoken(java.util.Set.of(languages.split(",")));
         }
 
         log.info("Synced doctor {} from Payload CMS", doctorId);
