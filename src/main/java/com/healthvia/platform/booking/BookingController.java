@@ -6,6 +6,7 @@ import com.healthvia.platform.auth.security.UserPrincipal;
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,12 +22,14 @@ import org.springframework.web.bind.annotation.*;
 public class BookingController {
 
     private final AppointmentRepository appointmentRepository;
+    private final IyzicoPaymentService iyzicoPaymentService;
 
     @PostMapping
     @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest req,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletRequest httpRequest) {
 
         Appointment apt = appointmentRepository.findById(req.getAppointmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", req.getAppointmentId()));
@@ -59,11 +62,29 @@ public class BookingController {
         if (apt.getFlightPrice() != null) total = total.add(apt.getFlightPrice());
         apt.setTotalPrice(total);
 
-        // Fake payment processing
-        if ("tok_test_success".equals(req.getPaymentToken())) {
+        // Process payment via iyzico
+        String clientIp = httpRequest.getHeader("X-Forwarded-For");
+        if (clientIp == null || clientIp.isEmpty()) {
+            clientIp = httpRequest.getRemoteAddr();
+        }
+
+        IyzicoPaymentService.PaymentResult paymentResult = iyzicoPaymentService.processPayment(
+                req,
+                principal.getFullName(),
+                principal.getEmail(),
+                principal.getId(),
+                total,
+                apt.getId(),
+                clientIp
+        );
+
+        if (paymentResult.success()) {
             apt.setPaymentStatus(Appointment.PaymentStatus.PAID);
+            apt.setPaymentId(paymentResult.paymentId());
         } else {
-            return ApiResponse.error("Payment failed");
+            apt.setPaymentStatus(Appointment.PaymentStatus.FAILED);
+            appointmentRepository.save(apt);
+            return ApiResponse.error("Payment failed: " + paymentResult.errorMessage());
         }
 
         appointmentRepository.save(apt);
