@@ -32,6 +32,13 @@ public final class AppointmentExceptions {
         }
     }
 
+    public static class TimeSlotConflictException extends BusinessException {
+        public TimeSlotConflictException() {
+            super(ErrorCodes.APPOINTMENT_ALREADY_BOOKED,
+                  "Bu saat diliminde başka bir randevu mevcut. Lütfen farklı bir saat seçin.");
+        }
+    }
+
     public static class CancellationDeadlineException extends BusinessException {
         public CancellationDeadlineException(long hoursLeft) {
             super(ErrorCodes.CANCELLATION_DEADLINE_PASSED, 
