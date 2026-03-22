@@ -58,19 +58,21 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> error(ErrorResponse error) {
         return ApiResponse.<T>builder()
             .success(false)
+            .message(error.getMessage())
             .error(error)
             .timestamp(LocalDateTime.now())
             .build();
     }
-    
+
     public static <T> ApiResponse<T> error(String message) {
         ErrorResponse error = ErrorResponse.builder()
             .message(message)
             .timestamp(LocalDateTime.now())
             .build();
-            
+
         return ApiResponse.<T>builder()
             .success(false)
+            .message(message)
             .error(error)
             .timestamp(LocalDateTime.now())
             .build();
