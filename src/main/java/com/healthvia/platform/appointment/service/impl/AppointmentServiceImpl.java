@@ -27,10 +27,6 @@ import com.healthvia.platform.common.exception.AppointmentExceptions;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
 import com.healthvia.platform.doctor.entity.Doctor;
 import com.healthvia.platform.doctor.repository.DoctorRepository;
-import com.healthvia.platform.zoom.dto.ZoomMeetingRequest;
-import com.healthvia.platform.zoom.dto.ZoomMeetingResponse;
-import com.healthvia.platform.zoom.service.ZoomService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +38,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final TimeSlotService timeSlotService;
-    private final ZoomService zoomService;
     private final DoctorRepository doctorRepository;
 
     // === TEMEL CRUD İŞLEMLERİ ===
@@ -532,37 +527,25 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("Bu saat diliminde başka bir randevu mevcut");
         }
 
-        // 3. Zoom meeting oluştur
-        String meetingTopic = request.getMeetingTopic() != null
-                ? request.getMeetingTopic()
-                : "HealthVia Video Konsültasyon";
-
-        ZoomMeetingRequest zoomRequest = ZoomMeetingRequest.builder()
-                .topic(meetingTopic)
-                .startTime(appointmentDateTime)
-                .durationMinutes(request.getDurationMinutes())
-                .agenda(request.getMeetingAgenda())
-                .patientId(request.getPatientId())
-                .doctorId(request.getDoctorId())
-                .waitingRoom(request.getWaitingRoom())
-                .build();
-
-        ZoomMeetingResponse zoomResponse = zoomService.createMeeting(zoomRequest);
-
-        // 4. Fetch doctor's consultation fee
+        // 3. Fetch doctor's consultation fee
         Doctor videoDoctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
         java.math.BigDecimal videoFee = videoDoctor.getConsultationFee() != null
                 ? videoDoctor.getConsultationFee() : java.math.BigDecimal.ZERO;
         String videoCurrency = "USD";
 
-        // 5. Build doctor display name
+        // 4. Build doctor display name
         String videoDisplayName = (videoDoctor.getFirstName() != null ? videoDoctor.getFirstName() : "")
                 + " " + (videoDoctor.getLastName() != null ? videoDoctor.getLastName() : "");
         videoDisplayName = videoDisplayName.trim();
         if (videoDisplayName.isEmpty()) videoDisplayName = "Doctor";
 
-        // 6. Appointment oluştur
+        // 5. Generate Jitsi room name for embedded video call
+        String roomName = "healthvia-" + request.getDoctorId() + "-" + request.getPatientId()
+                + "-" + request.getAppointmentDate().toString().replace("-", "")
+                + "-" + request.getStartTime().toString().replace(":", "");
+
+        // 6. Appointment oluştur (Jitsi embedded video - no Zoom)
         Appointment appointment = Appointment.builder()
                 .patientId(request.getPatientId())
                 .doctorId(request.getDoctorId())
@@ -587,10 +570,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .emailNotificationsEnabled(true)
                 .statusChangedAt(LocalDateTime.now())
                 .meetingInfo(new MeetingInfo(
-                        String.valueOf(zoomResponse.getId()),
-                        zoomResponse.getJoinUrl(),
-                        zoomResponse.getPassword(),
-                        "ZOOM",
+                        roomName,
+                        "https://meet.jit.si/" + roomName,
+                        null,
+                        "JITSI",
                         null,
                         null,
                         null
@@ -598,16 +581,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .build();
 
         appointment = appointmentRepository.save(appointment);
-        log.info("Video appointment created successfully with ID: {} and Zoom meeting ID: {}",
-                appointment.getId(), zoomResponse.getId());
+        log.info("Video appointment created successfully with ID: {} and Jitsi room: {}",
+                appointment.getId(), roomName);
 
-        // 5. Response oluştur (doktor için startUrl dahil)
-        VideoAppointmentResponse response = VideoAppointmentResponse.fromAppointment(appointment);
-        if (response.getMeetingDetails() != null) {
-            response.getMeetingDetails().setStartUrl(zoomResponse.getStartUrl());
-        }
-
-        return response;
+        return VideoAppointmentResponse.fromAppointment(appointment);
     }
 
     @Override
@@ -634,18 +611,6 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new RuntimeException("Bu randevu için meeting bilgisi bulunamadı");
         }
 
-        // Doktor ise startUrl'i Zoom'dan al
-        if (appointment.getDoctorId().equals(userId) || "ADMIN".equalsIgnoreCase(userRole)) {
-            try {
-                ZoomMeetingResponse zoomMeeting = zoomService.getMeeting(
-                        appointment.getMeetingInfo().getMeetingId());
-                return VideoAppointmentResponse.fromAppointmentForDoctor(appointment, zoomMeeting.getStartUrl());
-            } catch (Exception e) {
-                log.warn("Could not fetch Zoom meeting details: {}", e.getMessage());
-                return VideoAppointmentResponse.fromAppointment(appointment);
-            }
-        }
-
         return VideoAppointmentResponse.fromAppointment(appointment);
     }
 
@@ -653,23 +618,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public Appointment cancelVideoAppointment(String appointmentId, String cancelledBy, String reason) {
         log.info("Cancelling video appointment: {} by: {}", appointmentId, cancelledBy);
 
-        Appointment appointment = findByIdOrThrow(appointmentId);
-
-        // Video randevu ise Zoom meeting'i sil
-        if (appointment.getConsultationType() == ConsultationType.VIDEO_CALL &&
-            appointment.getMeetingInfo() != null &&
-            appointment.getMeetingInfo().getMeetingId() != null) {
-
-            try {
-                zoomService.deleteMeeting(appointment.getMeetingInfo().getMeetingId());
-                log.info("Zoom meeting deleted for appointment: {}", appointmentId);
-            } catch (Exception e) {
-                log.warn("Could not delete Zoom meeting: {}", e.getMessage());
-                // Meeting silinemese bile randevu iptal edilmeli
-            }
-        }
-
-        // Normal iptal işlemini çağır
+        // Normal iptal işlemini çağır (Jitsi rooms are ephemeral, no cleanup needed)
         return cancelAppointment(appointmentId, cancelledBy, reason);
     }
 }

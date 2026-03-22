@@ -6,6 +6,8 @@ import com.healthvia.platform.auth.security.UserPrincipal;
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/bookings")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Bookings", description = "Randevu rezervasyon ve ödeme yönetimi (iyzico)")
 public class BookingController {
 
     private final AppointmentRepository appointmentRepository;
@@ -26,6 +29,10 @@ public class BookingController {
 
     @PostMapping
     @PreAuthorize("hasRole('PATIENT')")
+    @Operation(
+        summary = "Rezervasyon oluştur ve ödeme yap",
+        description = "Randevu için iyzico üzerinden ödeme işlemi yapar. Otel ve uçuş bilgileri opsiyonel olarak eklenebilir."
+    )
     public ApiResponse<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest req,
             @AuthenticationPrincipal UserPrincipal principal,
@@ -89,9 +96,8 @@ public class BookingController {
 
         appointmentRepository.save(apt);
 
-        // Zoom link if available
+        // Video call link if available
         String joinUrl = null;
-        String startUrl = null;
         if (apt.getMeetingInfo() != null) {
             joinUrl = apt.getMeetingInfo().getMeetingUrl();
         }
@@ -101,7 +107,6 @@ public class BookingController {
                 .appointmentId(apt.getId())
                 .status("CONFIRMED")
                 .zoomJoinUrl(joinUrl)
-                .zoomStartUrl(startUrl)
                 .hotelName(apt.getHotelBookingName())
                 .flightDetails(apt.getFlightBookingDetails())
                 .message("Your booking is confirmed!")
@@ -110,6 +115,10 @@ public class BookingController {
 
     @GetMapping("/appointment/{appointmentId}")
     @PreAuthorize("hasRole('PATIENT') or hasRole('ADMIN')")
+    @Operation(
+        summary = "Randevu bazlı rezervasyon bilgisi getir",
+        description = "Belirli bir randevuya ait rezervasyon ve ödeme bilgilerini getirir."
+    )
     public ApiResponse<BookingResponse> getBookingByAppointment(
             @PathVariable String appointmentId) {
 
