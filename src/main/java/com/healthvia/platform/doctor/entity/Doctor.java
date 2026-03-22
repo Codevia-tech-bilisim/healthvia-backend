@@ -36,17 +36,21 @@ public class Doctor extends User {
     // === MESLEKİ KİMLİK ===
     @NotBlank(message = "Diploma numarası boş olamaz")
     @Indexed(unique = true)
+    @Field("diploma_number")
     private String diplomaNumber;
 
     @NotBlank(message = "Tabip Odası sicil numarası boş olamaz")
     @Indexed(unique = true)
+    @Field("medical_license_number")
     private String medicalLicenseNumber;
 
     // === EĞİTİM BİLGİLERİ ===
     @NotBlank(message = "Mezun olduğu tıp fakültesi boş olamaz")
     @Size(max = 200, message = "Tıp fakültesi adı en fazla 200 karakter olabilir")
+    @Field("medical_school")
     private String medicalSchool;
 
+    @Field("graduation_year")
     @Min(value = 1950, message = "Mezuniyet yılı 1950'den önce olamaz")
     @Max(value = 2030, message = "Mezuniyet yılı 2030'dan sonra olamaz")
     private Integer graduationYear;
@@ -59,6 +63,7 @@ public class Doctor extends User {
     private Integer specialtyCompletionYear;
 
     // === UZMANLIK ALANLARI ===
+    @Field("primary_specialty")
     private String primarySpecialty; // Ana uzmanlık alanı
 
     @Field("subspecialties") 
@@ -68,11 +73,11 @@ public class Doctor extends User {
     private Set<String> medicalInterests; // İlgi alanları
 
     // === PROFESYONEL DENEYİM ===
-    @Field("experience")
+    @Field("years_of_experience")
     @Min(value = 0, message = "Deneyim yılı negatif olamaz")
     private Integer yearsOfExperience;
 
-    @Field("hospitalName")
+    @Field("current_hospital")
     private String currentHospital; // Şu an çalıştığı hastane
 
     @Field("current_clinic")
@@ -82,6 +87,7 @@ public class Doctor extends User {
     private String jobTitle; // Başhekim, Doktor, Uzman Dr. vs.
 
     // === RANDEVU & ÇALIŞMA SAATLERİ ===
+    @Field("consultation_fee")
     @DecimalMin(value = "0.0", message = "Muayene ücreti negatif olamaz")
     @DecimalMax(value = "10000.0", message = "Muayene ücreti çok yüksek")
     private BigDecimal consultationFee;
@@ -139,7 +145,7 @@ public class Doctor extends User {
     @Field("offered_services")
     private Set<String> offeredServices; // Sunduğu hizmetler
 
-    @Field("languages")
+    @Field("languages_spoken")
     private Set<String> languagesSpoken; // Konuştuğu diller
 
     // === RANDEVU İSTATİSTİKLERİ ===
@@ -152,12 +158,12 @@ public class Doctor extends User {
     @Field("cancelled_appointments")
     private Integer cancelledAppointments;
 
-    @Field("rating")
+    @Field("average_rating")
     @DecimalMin(value = "0.0")
     @DecimalMax(value = "5.0")
     private Double averageRating;
 
-    @Field("reviewCount")
+    @Field("total_reviews")
     private Integer totalReviews;
 
     @Field("patients_treated")
