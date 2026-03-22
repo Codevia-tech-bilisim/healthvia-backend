@@ -35,6 +35,7 @@ public class VideoAppointmentRequest {
     private LocalDate appointmentDate;
 
     @NotNull(message = "Başlangıç saati gereklidir")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm:ss")
     private LocalTime startTime;
 
     @Min(value = 15, message = "Randevu süresi en az 15 dakika olmalıdır")
