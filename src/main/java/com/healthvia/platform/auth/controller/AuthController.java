@@ -87,15 +87,22 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ApiResponse<Void> forgotPassword(@RequestParam String email) {
+    public ApiResponse<Void> forgotPassword(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            throw new MissingServletRequestParameterException("email", "String");
+        }
         authService.forgotPassword(email);
         return ApiResponse.success("Şifre sıfırlama bağlantısı email adresinize gönderildi");
     }
 
     @PostMapping("/reset-password")
-    public ApiResponse<Void> resetPassword(
-            @RequestParam String token, 
-            @RequestParam String newPassword) {
+    public ApiResponse<Void> resetPassword(@RequestBody java.util.Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
+            throw new IllegalArgumentException("Token ve yeni şifre gereklidir");
+        }
         authService.resetPassword(token, newPassword);
         return ApiResponse.success("Şifre başarıyla güncellendi");
     }

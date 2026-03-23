@@ -33,6 +33,8 @@ public interface PatientRepository extends MongoRepository<Patient, String> {
 
     Optional<Patient> findByEmailAndDeletedFalse(String email);
 
+    Optional<Patient> findByPasswordResetToken(String passwordResetToken);
+
 
     
     /**

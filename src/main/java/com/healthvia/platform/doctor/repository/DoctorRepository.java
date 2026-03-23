@@ -22,6 +22,7 @@ public interface DoctorRepository extends MongoRepository<Doctor, String> {
     Optional<Doctor> findByEmail(String email);
 
     Optional<Doctor> findByEmailAndDeletedFalse(String email);
+    Optional<Doctor> findByPasswordResetToken(String passwordResetToken);
     boolean existsByEmail(String email);
     boolean existsByPhone(String phone);
     /**

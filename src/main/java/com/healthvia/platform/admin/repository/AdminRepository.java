@@ -339,6 +339,8 @@ public interface AdminRepository extends MongoRepository<Admin, String> {
 
     Optional<Admin> findByEmailAndDeletedFalse(String email);
 
+    Optional<Admin> findByPasswordResetToken(String passwordResetToken);
+
     boolean existsByEmail(String email);
     boolean existsByPhone(String phone);
 
