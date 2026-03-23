@@ -173,69 +173,6 @@ public class Patient extends User {
         return (completedAppointments != null ? completedAppointments : 0) * 100.0 / totalAppointments;
     }
 
-    /**
-     * Calculates profile completion rate based on filled fields.
-     * Fields and their weights:
-     * - Basic info (firstName, lastName, email, phone, birthDate, gender): 30% (already filled at registration)
-     * - Identity (tcKimlikNo or passportNo, birthPlace, address): 10%
-     * - Health info (bloodType, heightCm, weightKg): 15%
-     * - Medical history (allergies, chronicDiseases, currentMedications, familyMedicalHistory): 15%
-     * - Lifestyle (smokingStatus, alcoholConsumption, exerciseFrequency): 10%
-     * - Emergency contact (emergencyContactName, emergencyContactPhone, emergencyContactRelationship): 10%
-     * - Insurance (hasInsurance + details): 10%
-     */
-    public int calculateProfileCompletionRate() {
-        int rate = 0;
-
-        // Basic info — 30%
-        int basicCount = 0;
-        if (getFirstName() != null && !getFirstName().isBlank()) basicCount++;
-        if (getLastName() != null && !getLastName().isBlank()) basicCount++;
-        if (getEmail() != null && !getEmail().isBlank()) basicCount++;
-        if (getPhone() != null && !getPhone().isBlank()) basicCount++;
-        if (getBirthDate() != null) basicCount++;
-        if (getGender() != null) basicCount++;
-        rate += (int) Math.round(30.0 * basicCount / 6);
-
-        // Identity & address — 10%
-        int identityCount = 0;
-        if ((tcKimlikNo != null && !tcKimlikNo.isBlank()) || (passportNo != null && !passportNo.isBlank())) identityCount++;
-        if (birthPlace != null && !birthPlace.isBlank()) identityCount++;
-        if (address != null && !address.isBlank()) identityCount++;
-        rate += (int) Math.round(10.0 * identityCount / 3);
-
-        // Health info — 15%
-        int healthCount = 0;
-        if (bloodType != null && !bloodType.isBlank()) healthCount++;
-        if (heightCm != null) healthCount++;
-        if (weightKg != null) healthCount++;
-        rate += (int) Math.round(15.0 * healthCount / 3);
-
-        // Medical history — 15%
-        int medicalCount = 0;
-        if (allergies != null && !allergies.isBlank()) medicalCount++;
-        if (chronicDiseases != null && !chronicDiseases.isBlank()) medicalCount++;
-        if (currentMedications != null && !currentMedications.isBlank()) medicalCount++;
-        if (familyMedicalHistory != null && !familyMedicalHistory.isBlank()) medicalCount++;
-        rate += (int) Math.round(15.0 * medicalCount / 4);
-
-        // Lifestyle — 10%
-        int lifestyleCount = 0;
-        if (smokingStatus != null) lifestyleCount++;
-        if (alcoholConsumption != null) lifestyleCount++;
-        if (exerciseFrequency != null) lifestyleCount++;
-        rate += (int) Math.round(10.0 * lifestyleCount / 3);
-
-        // Emergency contact — 10%
-        int emergencyCount = 0;
-        if (emergencyContactName != null && !emergencyContactName.isBlank()) emergencyCount++;
-        if (emergencyContactPhone != null && !emergencyContactPhone.isBlank()) emergencyCount++;
-        if (emergencyContactRelationship != null && !emergencyContactRelationship.isBlank()) emergencyCount++;
-        rate += (int) Math.round(10.0 * emergencyCount / 3);
-
-        return Math.min(rate, 100);
-    }
-
     // === NESTED ENUMS ===
 
     public enum SmokingStatus {
