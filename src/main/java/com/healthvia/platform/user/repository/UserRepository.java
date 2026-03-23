@@ -42,6 +42,8 @@ public interface UserRepository extends MongoRepository<User, String> {
     @Query("{ $or: [ {'email': ?0}, {'phone': ?0} ] }")
     Optional<User> findByEmailOrPhone(String emailOrPhone);
 
+    Optional<User> findByPasswordResetToken(String passwordResetToken);
+
     // === ROLE BASED QUERIES ===
     
     /**

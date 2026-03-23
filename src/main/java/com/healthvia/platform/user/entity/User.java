@@ -96,6 +96,13 @@ public class User extends BaseEntity {
     @Field("account_locked_until")
     private LocalDateTime accountLockedUntil;
 
+    // === PASSWORD RESET ===
+    @Field("password_reset_token")
+    private String passwordResetToken;
+
+    @Field("password_reset_token_expiry")
+    private LocalDateTime passwordResetTokenExpiry;
+
     // === GDPR & CONSENT ===
     @Field("gdpr_consent")
     private Boolean gdprConsent;

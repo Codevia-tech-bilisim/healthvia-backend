@@ -1,6 +1,7 @@
 package com.healthvia.platform.auth.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -285,15 +286,40 @@ public class AuthServiceImpl implements AuthService {
             .or(() -> doctorRepository.findByEmail(email).map(doctor -> (User) doctor))
             .or(() -> adminRepository.findByEmail(email).map(admin -> (User) admin))
             .orElseThrow(() -> new BusinessException(ErrorCodes.USER_NOT_FOUND));
-        
-        log.info("Password reset requested for user: {}", user.getId());
-        throw new UnsupportedOperationException("Password reset will be implemented with email service");
+
+        // Generate a reset token (UUID) with 30-minute expiry
+        String resetToken = UUID.randomUUID().toString();
+        user.setPasswordResetToken(resetToken);
+        user.setPasswordResetTokenExpiry(LocalDateTime.now().plusMinutes(30));
+        saveUserToCorrectRepository(user);
+
+        log.info("Password reset token generated for user: {} — token: {}", user.getId(), resetToken);
+        // TODO: Send email with reset link when email service is available
+        // For now the token is logged and can be used via the reset-password endpoint
     }
 
     @Override
     public void resetPassword(String token, String newPassword) {
-        log.info("Password reset attempted with token: {}", token);
-        throw new UnsupportedOperationException("Password reset will be implemented with email service");
+        // Find user by reset token across all repositories
+        User user = patientRepository.findByPasswordResetToken(token).map(p -> (User) p)
+            .or(() -> userRepository.findByPasswordResetToken(token))
+            .or(() -> doctorRepository.findByPasswordResetToken(token).map(d -> (User) d))
+            .or(() -> adminRepository.findByPasswordResetToken(token).map(a -> (User) a))
+            .orElseThrow(() -> new BusinessException(ErrorCodes.TOKEN_INVALID, "Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı"));
+
+        // Check token expiry
+        if (user.getPasswordResetTokenExpiry() == null ||
+            user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCodes.TOKEN_EXPIRED, "Şifre sıfırlama bağlantısının süresi dolmuş");
+        }
+
+        // Update password and clear reset token
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        saveUserToCorrectRepository(user);
+
+        log.info("Password reset successful for user: {}", user.getId());
     }
 
     // === PRIVATE HELPER METHODS ===
