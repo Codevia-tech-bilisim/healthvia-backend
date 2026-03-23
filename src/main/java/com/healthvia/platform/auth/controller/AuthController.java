@@ -90,7 +90,7 @@ public class AuthController {
     public ApiResponse<Void> forgotPassword(@RequestBody java.util.Map<String, String> body) {
         String email = body.get("email");
         if (email == null || email.isBlank()) {
-            throw new MissingServletRequestParameterException("email", "String");
+            throw new IllegalArgumentException("Email adresi gereklidir");
         }
         authService.forgotPassword(email);
         return ApiResponse.success("Şifre sıfırlama bağlantısı email adresinize gönderildi");
