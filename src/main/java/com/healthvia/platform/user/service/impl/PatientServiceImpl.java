@@ -86,7 +86,7 @@ public class PatientServiceImpl implements PatientService {
     public Patient updatePatient(String id, Patient patient) {
         Patient existingPatient = findByIdOrThrow(id);
         updatePatientFields(existingPatient, patient);
-        return patientRepository.save(existingPatient);
+        return recalculateAndSave(existingPatient);
     }
 
     @Override
@@ -155,7 +155,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setChronicDiseases(chronicDiseases);
         patient.setCurrentMedications(currentMedications);
         patient.setFamilyMedicalHistory(familyMedicalHistory);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
@@ -165,7 +165,7 @@ public class PatientServiceImpl implements PatientService {
         }
         Patient patient = findByIdOrThrow(patientId);
         patient.setBloodType(bloodType);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
@@ -173,7 +173,7 @@ public class PatientServiceImpl implements PatientService {
         Patient patient = findByIdOrThrow(patientId);
         patient.setHeightCm(heightCm);
         patient.setWeightKg(weightKg);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
@@ -200,7 +200,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setInsurancePolicyNumber(policyNumber);
         patient.setInsuranceExpiryDate(expiryDate);
         patient.setHasInsurance(true);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
@@ -212,7 +212,7 @@ public class PatientServiceImpl implements PatientService {
             patient.setInsurancePolicyNumber(null);
             patient.setInsuranceExpiryDate(null);
         }
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
@@ -238,7 +238,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setEmergencyContactName(contactName);
         patient.setEmergencyContactPhone(contactPhone);
         patient.setEmergencyContactRelationship(relationship);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
@@ -263,14 +263,14 @@ public class PatientServiceImpl implements PatientService {
         patient.setSmokingStatus(smokingStatus);
         patient.setAlcoholConsumption(alcoholConsumption);
         patient.setExerciseFrequency(exerciseFrequency);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     @Override
     public Patient updatePreferredDoctorGender(String patientId, User.Gender preferredGender) {
         Patient patient = findByIdOrThrow(patientId);
         patient.setPreferredDoctorGender(preferredGender);
-        return patientRepository.save(patient);
+        return recalculateAndSave(patient);
     }
 
     // === SEARCH & FILTER OPERATIONS ===
@@ -585,6 +585,11 @@ public class PatientServiceImpl implements PatientService {
         return patientRepository.findById(id)
             .filter(patient -> !patient.isDeleted())
             .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", id));
+    }
+
+    private Patient recalculateAndSave(Patient patient) {
+        patient.setProfileCompletionRate(patient.calculateProfileCompletionRate());
+        return patientRepository.save(patient);
     }
     
 
