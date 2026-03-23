@@ -86,7 +86,7 @@ public class PatientServiceImpl implements PatientService {
     public Patient updatePatient(String id, Patient patient) {
         Patient existingPatient = findByIdOrThrow(id);
         updatePatientFields(existingPatient, patient);
-        return patientRepository.save(existingPatient);
+        return saveAndRecalculate(existingPatient);
     }
 
     @Override
@@ -148,14 +148,14 @@ public class PatientServiceImpl implements PatientService {
     // === HEALTH INFORMATION MANAGEMENT ===
     
     @Override
-    public Patient updateHealthInformation(String patientId, String allergies, String chronicDiseases, 
+    public Patient updateHealthInformation(String patientId, String allergies, String chronicDiseases,
                                          String currentMedications, String familyMedicalHistory) {
         Patient patient = findByIdOrThrow(patientId);
         patient.setAllergies(allergies);
         patient.setChronicDiseases(chronicDiseases);
         patient.setCurrentMedications(currentMedications);
         patient.setFamilyMedicalHistory(familyMedicalHistory);
-        return patientRepository.save(patient);
+        return saveAndRecalculate(patient);
     }
 
     @Override
@@ -165,7 +165,7 @@ public class PatientServiceImpl implements PatientService {
         }
         Patient patient = findByIdOrThrow(patientId);
         patient.setBloodType(bloodType);
-        return patientRepository.save(patient);
+        return saveAndRecalculate(patient);
     }
 
     @Override
@@ -173,7 +173,7 @@ public class PatientServiceImpl implements PatientService {
         Patient patient = findByIdOrThrow(patientId);
         patient.setHeightCm(heightCm);
         patient.setWeightKg(weightKg);
-        return patientRepository.save(patient);
+        return saveAndRecalculate(patient);
     }
 
     @Override
@@ -238,7 +238,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setEmergencyContactName(contactName);
         patient.setEmergencyContactPhone(contactPhone);
         patient.setEmergencyContactRelationship(relationship);
-        return patientRepository.save(patient);
+        return saveAndRecalculate(patient);
     }
 
     @Override
@@ -263,7 +263,7 @@ public class PatientServiceImpl implements PatientService {
         patient.setSmokingStatus(smokingStatus);
         patient.setAlcoholConsumption(alcoholConsumption);
         patient.setExerciseFrequency(exerciseFrequency);
-        return patientRepository.save(patient);
+        return saveAndRecalculate(patient);
     }
 
     @Override
@@ -579,8 +579,45 @@ public class PatientServiceImpl implements PatientService {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
+    // === PROFILE COMPLETION ===
+
+    private int calculateProfileCompletion(Patient patient) {
+        int filled = 0;
+        int total = 15;
+
+        // Identity fields (5)
+        if (patient.getFirstName() != null && !patient.getFirstName().isBlank()) filled++;
+        if (patient.getLastName() != null && !patient.getLastName().isBlank()) filled++;
+        if (patient.getEmail() != null && !patient.getEmail().isBlank()) filled++;
+        if (patient.getPhone() != null && !patient.getPhone().isBlank()) filled++;
+        if (patient.getBirthDate() != null) filled++;
+
+        // Health fields (4)
+        if (patient.getBloodType() != null && !patient.getBloodType().isBlank()) filled++;
+        if (patient.getHeightCm() != null && patient.getHeightCm() > 0) filled++;
+        if (patient.getWeightKg() != null && patient.getWeightKg() > 0) filled++;
+        if (patient.getAllergies() != null && !patient.getAllergies().isBlank()) filled++;
+
+        // Lifestyle fields (3)
+        if (patient.getSmokingStatus() != null) filled++;
+        if (patient.getAlcoholConsumption() != null) filled++;
+        if (patient.getExerciseFrequency() != null) filled++;
+
+        // Emergency contact fields (3)
+        if (patient.getEmergencyContactName() != null && !patient.getEmergencyContactName().isBlank()) filled++;
+        if (patient.getEmergencyContactPhone() != null && !patient.getEmergencyContactPhone().isBlank()) filled++;
+        if (patient.getEmergencyContactRelationship() != null && !patient.getEmergencyContactRelationship().isBlank()) filled++;
+
+        return (int) Math.round((double) filled / total * 100);
+    }
+
+    private Patient saveAndRecalculate(Patient patient) {
+        patient.setProfileCompletionRate(calculateProfileCompletion(patient));
+        return patientRepository.save(patient);
+    }
+
     // === HELPER METHODS ===
-    
+
     private Patient findByIdOrThrow(String id) {
         return patientRepository.findById(id)
             .filter(patient -> !patient.isDeleted())
