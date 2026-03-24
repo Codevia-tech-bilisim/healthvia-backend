@@ -65,6 +65,10 @@ jobs:
             IYZICO_API_KEY=${{ secrets.IYZICO_API_KEY }}
             IYZICO_SECRET_KEY=${{ secrets.IYZICO_SECRET_KEY }}
             IYZICO_BASE_URL=${{ secrets.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com' }}
+            MAIL_HOST=${{ secrets.MAIL_HOST }}
+            MAIL_PORT=${{ secrets.MAIL_PORT }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            CONTACT_EMAIL=info@codevia.tech
           secrets: |
             MONGODB_URI=MONGODB_URI:latest
             JWT_SECRET=JWT_SECRET:latest
@@ -72,3 +76,4 @@ jobs:
             ZOOM_CLIENT_SECRET=ZOOM_CLIENT_SECRET:latest
             ZOOM_ACCOUNT_ID=ZOOM_ACCOUNT_ID:latest
             PAYLOAD_SYNC_API_KEY=PAYLOAD_SYNC_API_KEY:latest
+            MAIL_PASSWORD=MAIL_PASSWORD:latest
