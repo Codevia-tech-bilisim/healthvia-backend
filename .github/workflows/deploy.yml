@@ -65,6 +65,11 @@ jobs:
             IYZICO_API_KEY=${{ secrets.IYZICO_API_KEY }}
             IYZICO_SECRET_KEY=${{ secrets.IYZICO_SECRET_KEY }}
             IYZICO_BASE_URL=${{ secrets.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com' }}
+            MAIL_HOST=${{ secrets.MAIL_HOST }}
+            MAIL_PORT=${{ secrets.MAIL_PORT }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+            CONTACT_EMAIL=info@codevia.tech
           secrets: |
             MONGODB_URI=MONGODB_URI:latest
             JWT_SECRET=JWT_SECRET:latest
