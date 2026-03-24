@@ -40,7 +40,6 @@ public class ContactEmailService {
             log.info("Contact email sent to {} from {}", recipientEmail, request.getEmail());
         } catch (Exception e) {
             log.error("Failed to send contact email from {}: {}", request.getEmail(), e.getMessage(), e);
-            throw new RuntimeException("Failed to send email. Please try again later.");
         }
     }
 }
