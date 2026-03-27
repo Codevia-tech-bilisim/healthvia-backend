@@ -262,8 +262,7 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     @Override
     @Transactional(readOnly = true)
     public List<TimeSlot> findAvailableSlots(String doctorId, LocalDate date) {
-        return timeSlotRepository.findByDoctorIdAndDateAndStatusAndDeletedFalse(
-                doctorId, date, TimeSlot.SlotStatus.AVAILABLE);
+        return timeSlotRepository.findAvailableSlots(doctorId, date);
     }
 
     @Override
