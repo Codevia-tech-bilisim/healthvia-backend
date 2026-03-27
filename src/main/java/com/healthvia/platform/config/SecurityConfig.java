@@ -62,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/leads/webhook/**").permitAll()
                 .requestMatchers("/api/v1/slots/available").permitAll()
                 .requestMatchers("/api/v1/slots/available/range").permitAll()
+                .requestMatchers("/api/v1/slots/all").permitAll()
                 .requestMatchers("/api/v1/bookings/**").permitAll()
                 .requestMatchers("/api/v1/contact").permitAll()         // Public contact form
                 .requestMatchers("/api/doctors/*/sync").permitAll()  // Secured by API key in controller
