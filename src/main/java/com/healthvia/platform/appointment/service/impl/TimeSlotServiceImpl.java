@@ -55,15 +55,17 @@ public class TimeSlotServiceImpl implements TimeSlotService {
     @Override
     public TimeSlot updateSlot(String id, TimeSlot slot) {
         TimeSlot existingSlot = findByIdOrThrow(id);
-        
+
         // Güvenli güncelleme alanları
+        if (slot.getStatus() != null) existingSlot.setStatus(slot.getStatus());
+        if (slot.getAppointmentId() != null) existingSlot.setAppointmentId(slot.getAppointmentId());
         if (slot.getStartTime() != null) existingSlot.setStartTime(slot.getStartTime());
         if (slot.getEndTime() != null) existingSlot.setEndTime(slot.getEndTime());
         if (slot.getDurationMinutes() != null) existingSlot.setDurationMinutes(slot.getDurationMinutes());
         if (slot.getAllowedConsultationTypes() != null) {
             existingSlot.setAllowedConsultationTypes(slot.getAllowedConsultationTypes());
         }
-        
+
         return timeSlotRepository.save(existingSlot);
     }
 
