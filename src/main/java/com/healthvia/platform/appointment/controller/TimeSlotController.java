@@ -36,10 +36,21 @@ public class TimeSlotController {
     public ApiResponse<List<TimeSlot>> getAvailableSlots(
             @RequestParam String doctorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        
+
         log.info("Getting available slots for doctor: {} on date: {}", doctorId, date);
-        
+
         List<TimeSlot> slots = timeSlotService.findAvailableSlots(doctorId, date);
+        return ApiResponse.success(slots);
+    }
+
+    @GetMapping("/all")
+    public ApiResponse<List<TimeSlot>> getAllSlots(
+            @RequestParam String doctorId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        log.info("Getting all slots for doctor: {} on date: {}", doctorId, date);
+
+        List<TimeSlot> slots = timeSlotService.findSlotsByDoctor(doctorId, date, date);
         return ApiResponse.success(slots);
     }
 
