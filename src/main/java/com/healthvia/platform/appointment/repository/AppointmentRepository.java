@@ -52,32 +52,32 @@ public interface AppointmentRepository extends MongoRepository<Appointment, Stri
         String doctorId, AppointmentStatus status, LocalDate startDate, LocalDate endDate);
 
     // === ÇAKIŞMA TESPİTİ ===
-    @Query("{'doctorId': ?0, 'appointmentDate': ?1, 'deleted': false, " +
+    @Query("{'doctor_id': ?0, 'appointment_date': ?1, 'deleted': false, " +
            "'status': {'$nin': ['CANCELLED', 'NO_SHOW', 'RESCHEDULED']}, " +
            "'$or': [" +
-           "  {'startTime': {'$lt': ?3}, 'endTime': {'$gt': ?2}}, " +
-           "  {'startTime': {'$gte': ?2, '$lt': ?3}}, " +
-           "  {'endTime': {'$gt': ?2, '$lte': ?3}}" +
+           "  {'start_time': {'$lt': ?3}, 'end_time': {'$gt': ?2}}, " +
+           "  {'start_time': {'$gte': ?2, '$lt': ?3}}, " +
+           "  {'end_time': {'$gt': ?2, '$lte': ?3}}" +
            "]}")
-    List<Appointment> findConflictingAppointments(String doctorId, LocalDate date, 
+    List<Appointment> findConflictingAppointments(String doctorId, LocalDate date,
                                                  LocalTime startTime, LocalTime endTime);
 
     // === YAKLAŞAN RANDEVULAR ===
-    @Query("{'$or': [{'patientId': ?0}, {'doctorId': ?0}], " +
-           "'appointmentDate': {'$gte': ?1, '$lte': ?2}, " +
+    @Query("{'$or': [{'patient_id': ?0}, {'doctor_id': ?0}], " +
+           "'appointment_date': {'$gte': ?1, '$lte': ?2}, " +
            "'status': {'$nin': ['CANCELLED', 'NO_SHOW', 'RESCHEDULED']}, " +
            "'deleted': false}")
     List<Appointment> findUpcomingAppointments(String userId, LocalDate startDate, LocalDate endDate);
 
     // === BUGÜNÜN RANDEVULARI ===
-    @Query("{'doctorId': ?0, 'appointmentDate': ?1, 'deleted': false, " +
+    @Query("{'doctor_id': ?0, 'appointment_date': ?1, 'deleted': false, " +
            "'status': {'$nin': ['CANCELLED', 'NO_SHOW', 'RESCHEDULED']}}")
     List<Appointment> findTodayAppointments(String doctorId, LocalDate today);
 
     // === HATIRLATMA SORGULARI ===
-    @Query("{'appointmentDate': {'$gte': ?0, '$lte': ?1}, " +
+    @Query("{'appointment_date': {'$gte': ?0, '$lte': ?1}, " +
            "'status': {'$in': ['PENDING', 'CONFIRMED']}, " +
-           "'reminderSentAt': null, " +
+           "'reminder_sent_at': null, " +
            "'deleted': false}")
     List<Appointment> findAppointmentsForReminder(LocalDate startDate, LocalDate endDate);
 

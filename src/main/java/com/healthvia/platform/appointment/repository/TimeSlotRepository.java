@@ -28,10 +28,10 @@ public interface TimeSlotRepository extends MongoRepository<TimeSlot, String> {
     List<TimeSlot> findByDoctorIdAndStatusAndDeletedFalse(String doctorId, SlotStatus status);
 
     // === MÜSAİT SLOT SORGULARI ===
-    @Query("{'doctorId': ?0, 'date': ?1, 'status': 'AVAILABLE', 'deleted': false}")
+    @Query("{'doctor_id': ?0, 'date': ?1, 'status': 'AVAILABLE', 'deleted': false}")
     List<TimeSlot> findAvailableSlots(String doctorId, LocalDate date);
 
-    @Query("{'doctorId': ?0, 'date': {'$gte': ?1, '$lte': ?2}, " +
+    @Query("{'doctor_id': ?0, 'date': {'$gte': ?1, '$lte': ?2}, " +
            "'status': 'AVAILABLE', 'deleted': false}")
     List<TimeSlot> findAvailableSlotsInRange(String doctorId, LocalDate startDate, LocalDate endDate);
 
@@ -39,7 +39,7 @@ public interface TimeSlotRepository extends MongoRepository<TimeSlot, String> {
     long countByDoctorIdAndDateAndStatusAndDeletedFalse(
         String doctorId, LocalDate date, SlotStatus status);
     
-    @Query(value = "{'doctorId': ?0, 'date': ?1, 'status': 'AVAILABLE', 'deleted': false}", 
+    @Query(value = "{'doctor_id': ?0, 'date': ?1, 'status': 'AVAILABLE', 'deleted': false}",
            count = true)
     long countAvailableSlots(String doctorId, LocalDate date);
 
@@ -47,13 +47,13 @@ public interface TimeSlotRepository extends MongoRepository<TimeSlot, String> {
     boolean existsByDoctorIdAndDateAndDeletedFalse(String doctorId, LocalDate date);
 
     // === ZAMAN ÇAKIŞMA SORGULARI ===
-    @Query("{'doctorId': ?0, 'date': ?1, 'deleted': false, " +
+    @Query("{'doctor_id': ?0, 'date': ?1, 'deleted': false, " +
            "'$or': [" +
-           "  {'startTime': {'$lt': ?3}, 'endTime': {'$gt': ?2}}, " +
-           "  {'startTime': {'$gte': ?2, '$lt': ?3}}, " +
-           "  {'endTime': {'$gt': ?2, '$lte': ?3}}" +
+           "  {'start_time': {'$lt': ?3}, 'end_time': {'$gt': ?2}}, " +
+           "  {'start_time': {'$gte': ?2, '$lt': ?3}}, " +
+           "  {'end_time': {'$gt': ?2, '$lte': ?3}}" +
            "]}")
-    List<TimeSlot> findOverlappingSlots(String doctorId, LocalDate date, 
+    List<TimeSlot> findOverlappingSlots(String doctorId, LocalDate date,
                                        LocalTime startTime, LocalTime endTime);
 
     // === RANDEVU İLE SLOT BULMA ===
