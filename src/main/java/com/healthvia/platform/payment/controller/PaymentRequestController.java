@@ -1,0 +1,95 @@
+package com.healthvia.platform.payment.controller;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.healthvia.platform.common.dto.ApiResponse;
+import com.healthvia.platform.payment.entity.PaymentRequest;
+import com.healthvia.platform.payment.service.PaymentRequestService;
+
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/v1/payments")
+@RequiredArgsConstructor
+public class PaymentRequestController {
+
+    private final PaymentRequestService service;
+
+    @PostMapping("/link")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'AGENT')")
+    public ApiResponse<PaymentRequest> createLink(@RequestBody CreateLinkRequest req) {
+        PaymentRequest pr = service.createLink(
+            req.caseId(), req.amount(), req.currency(), req.description(), req.channel());
+        return ApiResponse.success(pr, "Ödeme linki oluşturuldu");
+    }
+
+    @PostMapping("/agent-assisted")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'AGENT')")
+    public ApiResponse<PaymentRequest> chargeAgentAssisted(@RequestBody AgentChargeRequest req) {
+        PaymentRequest pr = service.chargeAgentAssisted(
+            req.caseId(), req.amount(), req.currency(), req.description(), req.consentId(),
+            new PaymentRequestService.AgentAssistedCard(
+                req.cardData().holderName(),
+                req.cardData().number(),
+                req.cardData().expireMonth(),
+                req.cardData().expireYear(),
+                req.cardData().cvc()));
+        return ApiResponse.success(pr, "Ödeme alındı");
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'AGENT', 'CEO')")
+    public ApiResponse<List<PaymentRequest>> list(
+            @RequestParam(required = false) String caseId,
+            @RequestParam(required = false) String agentId) {
+        if (caseId != null) return ApiResponse.success(service.findByCase(caseId));
+        if (agentId != null) return ApiResponse.success(service.findByAgent(agentId));
+        return ApiResponse.success(List.of());
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'AGENT', 'CEO')")
+    public ApiResponse<PaymentRequest> getOne(@PathVariable String id) {
+        return ApiResponse.success(service.findByIdOrThrow(id));
+    }
+
+    /** Public endpoint for hasta (patient) to fetch their payment details by link token. */
+    @GetMapping("/public/by-token/{token}")
+    public ApiResponse<PaymentRequest> getByLinkToken(@PathVariable String token) {
+        return service.findByLinkToken(token)
+            .map(ApiResponse::success)
+            .orElseGet(() -> ApiResponse.error("Ödeme linki bulunamadı veya süresi dolmuş"));
+    }
+
+    public record CreateLinkRequest(
+        String caseId,
+        BigDecimal amount,
+        String currency,
+        String description,
+        PaymentRequest.LinkChannel channel) {}
+
+    public record AgentChargeRequest(
+        String caseId,
+        BigDecimal amount,
+        String currency,
+        String description,
+        String consentId,
+        CardPayload cardData) {}
+
+    public record CardPayload(
+        String holderName,
+        String number,
+        String expireMonth,
+        String expireYear,
+        String cvc) {}
+}
