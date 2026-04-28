@@ -96,7 +96,7 @@ public class PatientController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or (#id == authentication.principal.id and hasRole('PATIENT'))")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO','DOCTOR') or (#id == authentication.principal.id and hasRole('PATIENT'))")
     public ApiResponse<PatientResponseDto> getPatientById(@PathVariable String id) {
         return patientService.findById(id)
             .map(PatientResponseDto::fromEntity)
@@ -219,15 +219,15 @@ public class PatientController {
     // === ADMIN ENDPOINTS ===
     
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO','DOCTOR')")
     public ApiResponse<Page<PatientDto>> getAllPatients(@PageableDefault(size = 20) Pageable pageable) {
         Page<Patient> patients = patientService.findAll(pageable);
         Page<PatientDto> patientDtos = patients.map(PatientDto::fromEntity);
         return ApiResponse.success(patientDtos);
     }
-    
+
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO','DOCTOR')")
     public ApiResponse<Page<PatientDto>> searchPatients(
             @RequestParam String searchTerm,
             @PageableDefault(size = 20) Pageable pageable) {

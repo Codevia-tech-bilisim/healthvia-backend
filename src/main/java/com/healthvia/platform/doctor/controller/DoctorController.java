@@ -175,7 +175,7 @@ public class DoctorController {
     // === ADMIN ENDPOINTS ===
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO')")
     public ApiResponse<Page<DoctorDto>> getAllDoctors(@PageableDefault(size = 20) Pageable pageable) {
         Page<Doctor> doctors = doctorService.findAll(pageable);
         Page<DoctorDto> doctorDtos = doctors.map(DoctorDto::fromEntity);
@@ -183,7 +183,7 @@ public class DoctorController {
     }
     
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO')")
     public ApiResponse<Page<DoctorDto>> searchDoctors(
             @RequestParam String searchTerm,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -193,14 +193,14 @@ public class DoctorController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN')")
     public ApiResponse<DoctorDto> createDoctor(@Valid @RequestBody Doctor doctor) {
         Doctor createdDoctor = doctorService.createDoctor(doctor);
         return ApiResponse.success(DoctorDto.fromEntity(createdDoctor), "Doctor created successfully");
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO','DOCTOR')")
     public ApiResponse<DoctorDto> getDoctorById(@PathVariable String id) {
         return doctorService.findById(id)
             .map(DoctorDto::fromEntity)
@@ -209,7 +209,7 @@ public class DoctorController {
     }
     
     @PatchMapping("/{id}/verification")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN')")
     public ApiResponse<DoctorDto> updateVerificationStatus(
             @PathVariable String id,
             @RequestParam Doctor.VerificationStatus status) {
@@ -218,7 +218,7 @@ public class DoctorController {
     }
     
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN')")
     public ApiResponse<Void> deleteDoctor(@PathVariable String id) {
         String deletedBy = SecurityUtils.getCurrentUserId();
         doctorService.deleteDoctor(id, deletedBy);
@@ -277,14 +277,14 @@ public class DoctorController {
     // === STATISTICS ENDPOINTS ===
     
     @GetMapping("/statistics/count-verified")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO')")
     public ApiResponse<Long> getVerifiedDoctorsCount() {
         long count = doctorService.countVerifiedDoctors();
         return ApiResponse.success(count);
     }
     
     @GetMapping("/statistics/count-by-specialty")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','AGENT','CEO')")
     public ApiResponse<Long> getDoctorsCountBySpecialty(@RequestParam String specialty) {
         long count = doctorService.countDoctorsBySpecialty(specialty);
         return ApiResponse.success(count);
