@@ -4,7 +4,9 @@ import com.healthvia.platform.config.IyzicoProperties;
 import com.iyzipay.Options;
 import com.iyzipay.model.*;
 import com.iyzipay.request.CreateCancelRequest;
+import com.iyzipay.request.CreateCheckoutFormInitializeRequest;
 import com.iyzipay.request.CreatePaymentRequest;
+import com.iyzipay.request.RetrieveCheckoutFormRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -162,5 +164,143 @@ public class IyzicoPaymentService {
         }
     }
 
+    /**
+     * Direct charge via card details — used by agent-assisted flow. Card data
+     * never leaves the request object (forwarded to iyzico, not persisted).
+     */
+    public PaymentResult chargeWithCard(
+            String conversationId,
+            String basketLabel,
+            BigDecimal amount,
+            String currency,
+            String cardHolderName,
+            String cardNumber,
+            String expireMonth,
+            String expireYear,
+            String cvc,
+            String buyerName,
+            String buyerEmail,
+            String buyerId,
+            String buyerPhone,
+            String ip) {
+
+        BookingRequest req = new BookingRequest();
+        req.setAppointmentId(conversationId);
+        req.setCardHolderName(cardHolderName);
+        req.setCardNumber(cardNumber);
+        req.setExpireMonth(expireMonth);
+        req.setExpireYear(expireYear);
+        req.setCvc(cvc);
+        // Note: existing processPayment is hardcoded to TRY; sandbox accepts that.
+        // Multi-currency flows can call iyzico directly when needed.
+        return processPayment(req, buyerName, buyerEmail, buyerId, buyerPhone, amount,
+                conversationId, ip);
+    }
+
+    /**
+     * Initialise iyzico hosted Checkout Form. Returns a paymentPageUrl that
+     * the agent shares with the patient; the patient pays on iyzico's
+     * sandbox/production page (PCI scope stays with iyzico).
+     */
+    public CheckoutInitResult initializeCheckoutForm(
+            String conversationId,
+            String basketLabel,
+            BigDecimal amount,
+            String currency,
+            String buyerName,
+            String buyerEmail,
+            String buyerId,
+            String buyerPhone,
+            String ip,
+            String callbackUrl) {
+
+        try {
+            CreateCheckoutFormInitializeRequest req = new CreateCheckoutFormInitializeRequest();
+            req.setLocale(Locale.TR.getValue());
+            req.setConversationId(conversationId);
+            req.setPrice(amount);
+            req.setPaidPrice(amount);
+            // iyzico sandbox API requires TRY for test cards in many configurations;
+            // use provided currency, falling back to TRY if blank.
+            req.setCurrency((currency == null || currency.isBlank()) ? Currency.TRY.name() : currency);
+            req.setBasketId("HEALTHVIA-" + conversationId);
+            req.setPaymentGroup(PaymentGroup.PRODUCT.name());
+            req.setCallbackUrl(callbackUrl);
+            req.setEnabledInstallments(new ArrayList<>(List.of(2, 3, 6, 9)));
+
+            String[] nameParts = (buyerName == null ? "Hasta" : buyerName).split(" ", 2);
+            String firstName = nameParts[0];
+            String lastName = nameParts.length > 1 ? nameParts[1] : firstName;
+
+            Buyer buyer = new Buyer();
+            buyer.setId(buyerId == null ? "guest-" + conversationId : buyerId);
+            buyer.setName(firstName);
+            buyer.setSurname(lastName);
+            buyer.setEmail(buyerEmail == null ? "patient@healthvia.com" : buyerEmail);
+            buyer.setIdentityNumber("74300864791");
+            buyer.setGsmNumber(buyerPhone == null || buyerPhone.isEmpty() ? "+905350000000" : buyerPhone);
+            buyer.setRegistrationAddress("Istanbul, Turkey");
+            buyer.setIp(ip == null ? "85.34.78.112" : ip);
+            buyer.setCity("Istanbul");
+            buyer.setCountry("Turkey");
+            req.setBuyer(buyer);
+
+            Address address = new Address();
+            address.setContactName(buyerName == null ? "Hasta" : buyerName);
+            address.setCity("Istanbul");
+            address.setCountry("Turkey");
+            address.setAddress("Istanbul, Turkey");
+            req.setShippingAddress(address);
+            req.setBillingAddress(address);
+
+            List<BasketItem> basket = new ArrayList<>();
+            BasketItem item = new BasketItem();
+            item.setId("HV-" + conversationId);
+            item.setName(basketLabel == null ? "HealthVia Treatment Package" : basketLabel);
+            item.setCategory1("Health");
+            item.setCategory2("Medical Tourism");
+            item.setItemType(BasketItemType.VIRTUAL.name());
+            item.setPrice(amount);
+            basket.add(item);
+            req.setBasketItems(basket);
+
+            log.info("Initialising iyzico Checkout Form for {} ({} {})", conversationId, amount, currency);
+            CheckoutFormInitialize init = CheckoutFormInitialize.create(req, getOptions());
+
+            if ("success".equalsIgnoreCase(init.getStatus())) {
+                return new CheckoutInitResult(true, init.getToken(), init.getPaymentPageUrl(), null);
+            }
+            String err = init.getErrorMessage() == null ? "Checkout init failed" : init.getErrorMessage();
+            log.warn("Iyzico checkout init failed: {}", err);
+            return new CheckoutInitResult(false, null, null, err);
+        } catch (Exception e) {
+            log.error("Iyzico checkout init exception", e);
+            return new CheckoutInitResult(false, null, null, e.getMessage());
+        }
+    }
+
+    /**
+     * Retrieve the result of a previously initialised CheckoutForm. Called
+     * from the iyzico callback handler to mark our PaymentRequest as PAID.
+     */
+    public CheckoutRetrieveResult retrieveCheckoutForm(String iyzicoToken, String conversationId) {
+        try {
+            RetrieveCheckoutFormRequest req = new RetrieveCheckoutFormRequest();
+            req.setLocale(Locale.TR.getValue());
+            req.setConversationId(conversationId);
+            req.setToken(iyzicoToken);
+            CheckoutForm result = CheckoutForm.retrieve(req, getOptions());
+            boolean paid = "success".equalsIgnoreCase(result.getStatus())
+                && "SUCCESS".equalsIgnoreCase(result.getPaymentStatus());
+            return new CheckoutRetrieveResult(paid, result.getPaymentId(),
+                paid ? null : (result.getErrorMessage() == null ? result.getPaymentStatus() : result.getErrorMessage()));
+        } catch (Exception e) {
+            log.error("Iyzico retrieve exception", e);
+            return new CheckoutRetrieveResult(false, null, e.getMessage());
+        }
+    }
+
     public record PaymentResult(boolean success, String paymentId, String errorMessage) {}
+    public record CheckoutInitResult(boolean success, String token, String paymentPageUrl, String errorMessage) {}
+    public record CheckoutRetrieveResult(boolean paid, String paymentId, String errorMessage) {}
 }
