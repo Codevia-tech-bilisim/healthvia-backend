@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.healthvia.platform.common.exception.ResourceNotFoundException;
+import com.healthvia.platform.conversation.channel.ChannelDispatcher;
+import com.healthvia.platform.conversation.entity.Conversation;
+import com.healthvia.platform.conversation.repository.ConversationRepository;
 import com.healthvia.platform.conversation.service.ConversationService;
 import com.healthvia.platform.message.entity.Message;
 import com.healthvia.platform.message.entity.Message.*;
@@ -28,6 +31,8 @@ public class MessageServiceImpl implements MessageService {
 
     private final MessageRepository messageRepository;
     private final ConversationService conversationService;
+    private final ConversationRepository conversationRepository;
+    private final ChannelDispatcher channelDispatcher;
 
     // === GÖNDERME ===
 
@@ -52,6 +57,24 @@ public class MessageServiceImpl implements MessageService {
 
         // Konuşmayı güncelle
         conversationService.onNewMessage(conversationId, saved.getPreview(), "AGENT");
+
+        // Outbound dispatch — sadece dış kanal (EMAIL/TELEGRAM/WHATSAPP/SMS) için
+        try {
+            Conversation conv = conversationRepository.findById(conversationId).orElse(null);
+            if (conv != null && conv.getChannel() != null
+                && conv.getChannel() != Conversation.Channel.INTERNAL
+                && conv.getChannel() != Conversation.Channel.LIVE_CHAT
+                && conv.getChannel() != Conversation.Channel.WEB_FORM) {
+                channelDispatcher.dispatch(conv, saved.getId(), content, conv.getSubject())
+                    .ifPresent(extId -> {
+                        saved.setExternalMessageId(extId);
+                        saved.setDeliveryStatus(DeliveryStatus.DELIVERED);
+                        messageRepository.save(saved);
+                    });
+            }
+        } catch (Exception e) {
+            log.warn("Outbound channel dispatch failed for msg {}: {}", saved.getId(), e.getMessage());
+        }
 
         log.info("Agent message sent in conversation: {}", conversationId);
         return saved;

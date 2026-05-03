@@ -89,4 +89,12 @@ public interface ConversationRepository extends MongoRepository<Conversation, St
     long countByDeletedFalse();
 
     long countByChannelAndDeletedFalse(Channel channel);
+
+    // === EXTERNAL CHANNEL LOOKUP ===
+
+    java.util.Optional<Conversation> findByChannelAndChannelConversationIdAndDeletedFalse(
+        Channel channel, String channelConversationId);
+
+    java.util.Optional<Conversation> findFirstByLeadIdAndChannelAndDeletedFalseOrderByCreatedAtDesc(
+        String leadId, Channel channel);
 }

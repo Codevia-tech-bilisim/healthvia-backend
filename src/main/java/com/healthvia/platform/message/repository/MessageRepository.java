@@ -80,4 +80,7 @@ public interface MessageRepository extends MongoRepository<Message, String> {
 
     @Query(value = "{ 'senderType': 'AGENT', 'senderId': ?0, 'deleted': false }", count = true)
     long countByAgent(String agentId);
+
+    /** De-duplication for inbound channel adapters. */
+    java.util.Optional<Message> findFirstByExternalMessageIdAndDeletedFalse(String externalMessageId);
 }

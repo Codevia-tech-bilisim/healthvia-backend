@@ -133,9 +133,11 @@ public class Conversation extends BaseEntity {
         WHATSAPP("WhatsApp"),
         INSTAGRAM("Instagram"),
         EMAIL("Email"),
+        TELEGRAM("Telegram"),
         LIVE_CHAT("Canlı Chat"),
         PHONE("Telefon"),
         SMS("SMS"),
+        WEB_FORM("Web Form"),
         INTERNAL("Dahili Not");
 
         private final String displayName;
