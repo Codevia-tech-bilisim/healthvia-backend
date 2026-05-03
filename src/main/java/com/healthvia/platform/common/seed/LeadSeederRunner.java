@@ -3,7 +3,9 @@ package com.healthvia.platform.common.seed;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
@@ -12,6 +14,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import com.healthvia.platform.admin.entity.Admin;
+import com.healthvia.platform.admin.repository.AdminRepository;
+import com.healthvia.platform.common.enums.UserRole;
 import com.healthvia.platform.lead.entity.Lead;
 import com.healthvia.platform.lead.entity.Lead.AssignmentMethod;
 import com.healthvia.platform.lead.entity.Lead.LeadPriority;
@@ -45,6 +50,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LeadSeederRunner implements CommandLineRunner {
 
     private final LeadRepository leadRepository;
+    private final AdminRepository adminRepository;
 
     @Value("${app.seed.demo-leads:false}")
     private boolean enabled;
@@ -63,11 +69,23 @@ public class LeadSeederRunner implements CommandLineRunner {
             return;
         }
 
-        log.info("🌱 Seeding {} demo leads...", SEED_DATA.size());
+        // Load real seeded HealthVia AGENTs so we can assign them via DB ids,
+        // not random placeholder strings. If team seeder hasn't run, we just
+        // leave assignedAgentId null — autoAssign'll pick later when an agent
+        // logs in.
+        List<String> realAgentIds = adminRepository.findAll().stream()
+            .filter(a -> a.getRole() == UserRole.AGENT)
+            .filter(a -> !a.isDeleted())
+            .map(Admin::getId)
+            .toList();
+        log.info("🌱 Seeding {} demo leads (agentPool size={})...", SEED_DATA.size(), realAgentIds.size());
+
         int saved = 0;
-        for (LeadSeed s : SEED_DATA) {
+        for (int i = 0; i < SEED_DATA.size(); i++) {
+            LeadSeed s = SEED_DATA.get(i);
             try {
-                leadRepository.save(s.toEntity());
+                Lead lead = s.toEntity(realAgentIds, i);
+                leadRepository.save(lead);
                 saved += 1;
             } catch (Exception e) {
                 log.warn("Lead seed insert failed: {} — {}", s.firstName, e.getMessage());
@@ -88,9 +106,13 @@ public class LeadSeederRunner implements CommandLineRunner {
         Set<String> tags,
         int daysAgo) {
 
-        Lead toEntity() {
+        Lead toEntity(List<String> agentPool, int index) {
             LocalDateTime created = LocalDateTime.now().minusDays(daysAgo).minusHours(R.nextInt(24));
             LocalDateTime updated = created.plusHours(2 + R.nextInt(48));
+            // Round-robin across real seeded agents; fall back to null if pool is empty.
+            String assignedAgent = (status == LeadStatus.NEW || agentPool.isEmpty())
+                ? null
+                : agentPool.get(index % agentPool.size());
             return Lead.builder()
                 .firstName(firstName).lastName(lastName)
                 .email(email).phone(phone)
@@ -101,13 +123,19 @@ public class LeadSeederRunner implements CommandLineRunner {
                 .treatmentTypeId(treatmentTypeId)
                 .conversionValue(conversionValue)
                 .convertedAt(status == LeadStatus.CONVERTED ? updated : null)
-                .assignedAgentId(status == LeadStatus.NEW ? null : "agt_demo_" + (1 + R.nextInt(5)))
-                .assignmentMethod(status == LeadStatus.NEW ? null : AssignmentMethod.AUTO)
+                .assignedAgentId(assignedAgent)
+                .assignmentMethod(assignedAgent == null ? null : AssignmentMethod.AUTO)
+                .previousAgentIds(new ArrayList<>())
                 .tags(tags)
                 .createdAt(created)
                 .updatedAt(updated)
                 .build();
         }
+    }
+
+    @SuppressWarnings("unused")
+    private static Optional<String> firstId(List<String> list) {
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
     private static final List<LeadSeed> SEED_DATA = List.of(

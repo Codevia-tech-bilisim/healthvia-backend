@@ -13,6 +13,7 @@ import com.healthvia.platform.conversation.entity.Conversation;
 import com.healthvia.platform.conversation.repository.ConversationRepository;
 import com.healthvia.platform.lead.entity.Lead;
 import com.healthvia.platform.lead.repository.LeadRepository;
+import com.healthvia.platform.lead.service.LeadService;
 import com.healthvia.platform.message.entity.Message;
 import com.healthvia.platform.message.repository.MessageRepository;
 
@@ -46,6 +47,7 @@ public class MessageInboundService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final LeadRepository leadRepository;
+    private final LeadService leadService;   // for autoAssign
     private final SimpMessagingTemplate ws;
 
     public Message ingest(InboundChannelMessage in) {
@@ -203,6 +205,21 @@ public class MessageInboundService {
         Lead saved = leadRepository.save(lead);
         log.info("🆕 Lead auto-created from {} inbound: {} ({})", in.getChannel(), saved.getId(),
             in.getExternalUserId());
+
+        // Auto-assign to a HealthVia employee (Lead) — language + specialty
+        // match + least-busy round-robin. Failures are non-fatal: the new
+        // patient stays unassigned and the admin can pick someone manually.
+        try {
+            Lead assigned = leadService.autoAssign(saved.getId());
+            if (assigned.getAssignedAgentId() != null) {
+                log.info("🤖 Auto-assigned lead {} → agent {} ({} chats)",
+                    assigned.getId(), assigned.getAssignedAgentId(),
+                    assigned.getStatus());
+                return assigned;
+            }
+        } catch (Exception e) {
+            log.warn("Auto-assign failed for lead {}: {}", saved.getId(), e.getMessage());
+        }
         return saved;
     }
 
