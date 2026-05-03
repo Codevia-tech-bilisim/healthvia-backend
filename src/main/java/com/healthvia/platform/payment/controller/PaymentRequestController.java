@@ -71,6 +71,29 @@ public class PaymentRequestController {
             .orElseGet(() -> ApiResponse.error("Ödeme linki bulunamadı veya süresi dolmuş"));
     }
 
+    /**
+     * iyzico webhook — called server-to-server when a hosted-checkout payment
+     * completes. Marks the PaymentRequest as PAID and updates the case's
+     * paidAmount via the payment service. Production hardening (signature
+     * verification, idempotency by iyzicoPaymentId) goes here when the
+     * webhook secret is provisioned.
+     */
+    @PostMapping("/public/webhook/iyzico")
+    public ApiResponse<Void> iyzicoWebhook(@RequestBody IyzicoWebhookPayload payload) {
+        if (payload == null || payload.token() == null) {
+            return ApiResponse.error("Invalid webhook payload");
+        }
+        return service.findByLinkToken(payload.token())
+            .map(pr -> {
+                if (!"SUCCESS".equalsIgnoreCase(payload.status())) {
+                    return ApiResponse.<Void>success("Ignored non-success webhook");
+                }
+                service.markPaid(pr.getId(), payload.paymentId());
+                return ApiResponse.<Void>success("Ödeme başarıyla işlendi");
+            })
+            .orElseGet(() -> ApiResponse.error("Token eşleşmedi"));
+    }
+
     public record CreateLinkRequest(
         String caseId,
         BigDecimal amount,
@@ -92,4 +115,10 @@ public class PaymentRequestController {
         String expireMonth,
         String expireYear,
         String cvc) {}
+
+    public record IyzicoWebhookPayload(
+        String token,
+        String paymentId,
+        String status,
+        String currency) {}
 }

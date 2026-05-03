@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.dto.PageResponse;
+import com.healthvia.platform.patientcase.dto.CaseFinancialSummaryDto;
 import com.healthvia.platform.patientcase.dto.PatientCaseDto;
 import com.healthvia.platform.patientcase.entity.PatientCase;
 import com.healthvia.platform.patientcase.entity.PatientCase.CaseStatus;
@@ -91,5 +92,15 @@ public class PatientCaseController {
         // Full timeline — implementation depends on event store; return empty skeleton for now.
         caseService.findByIdOrThrow(id);
         return ApiResponse.success(List.of());
+    }
+
+    /**
+     * Returns the case's full financial picture — every flight, hotel,
+     * appointment and payment line, with running totals and journey duration.
+     * Used by both the agent case-detail screen and the CEO drill-down.
+     */
+    @GetMapping("/{id}/financial-summary")
+    public ApiResponse<CaseFinancialSummaryDto> financialSummary(@PathVariable String id) {
+        return ApiResponse.success(caseService.getFinancialSummary(id));
     }
 }

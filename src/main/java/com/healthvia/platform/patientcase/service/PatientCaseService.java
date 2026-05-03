@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.healthvia.platform.patientcase.dto.CaseFinancialSummaryDto;
 import com.healthvia.platform.patientcase.entity.PatientCase;
 import com.healthvia.platform.patientcase.entity.PatientCase.CaseStatus;
 
@@ -39,4 +40,7 @@ public interface PatientCaseService {
     PatientCase registerPayment(String caseId, BigDecimal amount);
 
     PatientCase addConsent(String caseId, String consentId);
+
+    /** Full financial summary — used by case detail UI + audit. */
+    CaseFinancialSummaryDto getFinancialSummary(String caseId);
 }
