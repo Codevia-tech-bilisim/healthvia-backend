@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 env:
   PROJECT_ID: healthvia-beta
@@ -62,6 +63,7 @@ jobs:
             --allow-unauthenticated
           env_vars: |
             SPRING_PROFILES_ACTIVE=prod
+            APP_SEED_DEMO_TEAM=true
             IYZICO_API_KEY=${{ secrets.IYZICO_API_KEY }}
             IYZICO_SECRET_KEY=${{ secrets.IYZICO_SECRET_KEY }}
             IYZICO_BASE_URL=${{ secrets.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com' }}
