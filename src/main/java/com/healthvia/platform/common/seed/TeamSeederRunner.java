@@ -1,5 +1,6 @@
 package com.healthvia.platform.common.seed;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +43,9 @@ import lombok.extern.slf4j.Slf4j;
  *     service can pick them right away
  *   - bcrypt-hashed password so login works against the real /auth/login
  *     endpoint immediately
+ *   - unique phone number — required because User.phone has @Indexed(unique=true)
+ *     and auto-index-creation=true, so multiple null phones would trigger
+ *     E11000 duplicate key on the second insert.
  */
 @Slf4j
 @Component
@@ -79,8 +83,10 @@ public class TeamSeederRunner implements CommandLineRunner {
                 Admin a = m.toEntity(pw);
                 adminRepository.save(a);
                 saved += 1;
+                log.info("  ✓ Seeded {} ({})", m.email(), m.role());
             } catch (Exception e) {
-                log.warn("Team seed insert failed: {} — {}", m.email, e.getMessage());
+                log.warn("Team seed insert failed: {} — {}: {}",
+                    m.email(), e.getClass().getSimpleName(), e.getMessage());
             }
         }
         log.info("✅ Seeded {} HealthVia accounts (default password: {}).", saved, demoPassword);
@@ -89,7 +95,7 @@ public class TeamSeederRunner implements CommandLineRunner {
     /* ---------- Data ---------- */
 
     private record TeamMember(
-        String email, String firstName, String lastName,
+        String email, String phone, String firstName, String lastName,
         UserRole role, AdminLevel level, String department, String jobTitle,
         Set<String> languages, Set<String> specializations,
         String avatarUrl) {
@@ -97,6 +103,7 @@ public class TeamSeederRunner implements CommandLineRunner {
         Admin toEntity(String passwordHash) {
             Admin a = Admin.builder()
                 .email(email)
+                .phone(phone)
                 .password(passwordHash)
                 .firstName(firstName)
                 .lastName(lastName)
@@ -104,12 +111,17 @@ public class TeamSeederRunner implements CommandLineRunner {
                 .status(UserStatus.ACTIVE)
                 .emailVerified(true)
                 .phoneVerified(false)
+                .gdprConsent(true)
+                .gdprConsentDate(LocalDateTime.now())
+                .failedLoginAttempts(0)
+                .profileCompletionRate(80)
                 .preferredLanguage(toLanguage(languages.iterator().next()))
                 .avatarUrl(avatarUrl)
                 .department(department)
                 .jobTitle(jobTitle)
                 .adminLevel(level)
                 .employeeId("HV-" + (1000 + Math.abs(email.hashCode() % 9000)))
+                .hireDate(LocalDateTime.now())
                 .canManageUsers(level == AdminLevel.SUPER_ADMIN || level == AdminLevel.MANAGER)
                 .canManageDoctors(level == AdminLevel.SUPER_ADMIN || level == AdminLevel.MANAGER)
                 .canManageClinics(level == AdminLevel.SUPER_ADMIN)
@@ -134,21 +146,21 @@ public class TeamSeederRunner implements CommandLineRunner {
 
     private static final List<TeamMember> TEAM_SEED = List.of(
         new TeamMember(
-            "root@healthvia.com", "Sistem", "Yöneticisi",
+            "root@healthvia.com", "+905550000001", "Sistem", "Yöneticisi",
             UserRole.SUPERADMIN, AdminLevel.SUPER_ADMIN,
             "Sistem", "Süper Yönetici",
             Set.of("TR","EN"), Set.of(),
             "https://i.pravatar.cc/150?img=68"),
 
         new TeamMember(
-            "sinem.kara@healthvia.com", "Sinem", "Kara",
+            "sinem.kara@healthvia.com", "+905550000002", "Sinem", "Kara",
             UserRole.CEO, AdminLevel.MANAGER,
             "Yönetim", "CEO",
             Set.of("TR","EN","FR"), Set.of(),
             "https://i.pravatar.cc/150?img=48"),
 
         new TeamMember(
-            "mert.yilmaz@healthvia.com", "Mert", "Yılmaz",
+            "mert.yilmaz@healthvia.com", "+905550000003", "Mert", "Yılmaz",
             UserRole.ADMIN, AdminLevel.MANAGER,
             "Operasyon", "Operasyon Müdürü (Lead Yöneticisi)",
             Set.of("TR","EN"), Set.of(),
@@ -157,7 +169,7 @@ public class TeamSeederRunner implements CommandLineRunner {
         // ===== AGENTs (= UI'da "Lead'ler") =====
 
         new TeamMember(
-            "zeynep.aydin@healthvia.com", "Zeynep", "Aydın",
+            "zeynep.aydin@healthvia.com", "+905550000004", "Zeynep", "Aydın",
             UserRole.AGENT, AdminLevel.SENIOR,
             "Müşteri Hizmetleri", "Kıdemli Lead",
             Set.of("TR","EN","AR"),
@@ -165,7 +177,7 @@ public class TeamSeederRunner implements CommandLineRunner {
             "https://i.pravatar.cc/150?img=47"),
 
         new TeamMember(
-            "ahmet.demir@healthvia.com", "Ahmet", "Demir",
+            "ahmet.demir@healthvia.com", "+905550000005", "Ahmet", "Demir",
             UserRole.AGENT, AdminLevel.STANDARD,
             "Müşteri Hizmetleri", "Lead",
             Set.of("TR","EN","DE"),
@@ -173,7 +185,7 @@ public class TeamSeederRunner implements CommandLineRunner {
             "https://i.pravatar.cc/150?img=12"),
 
         new TeamMember(
-            "elena.rossi@healthvia.com", "Elena", "Rossi",
+            "elena.rossi@healthvia.com", "+905550000006", "Elena", "Rossi",
             UserRole.AGENT, AdminLevel.STANDARD,
             "Müşteri Hizmetleri", "Lead",
             Set.of("IT","EN","FR"),
@@ -181,7 +193,7 @@ public class TeamSeederRunner implements CommandLineRunner {
             "https://i.pravatar.cc/150?img=45"),
 
         new TeamMember(
-            "omar.hassan@healthvia.com", "Omar", "Hassan",
+            "omar.hassan@healthvia.com", "+905550000007", "Omar", "Hassan",
             UserRole.AGENT, AdminLevel.STANDARD,
             "Müşteri Hizmetleri", "Lead",
             Set.of("AR","EN","TR"),
@@ -189,7 +201,7 @@ public class TeamSeederRunner implements CommandLineRunner {
             "https://i.pravatar.cc/150?img=33"),
 
         new TeamMember(
-            "sofia.meyer@healthvia.com", "Sofia", "Meyer",
+            "sofia.meyer@healthvia.com", "+905550000008", "Sofia", "Meyer",
             UserRole.AGENT, AdminLevel.STANDARD,
             "Müşteri Hizmetleri", "Lead",
             Set.of("DE","EN","TR"),
