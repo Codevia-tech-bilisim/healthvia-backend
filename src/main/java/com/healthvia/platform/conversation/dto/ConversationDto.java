@@ -103,7 +103,9 @@ public class ConversationDto {
     }
 
     /**
-     * Inbox listesi için hafif versiyon
+     * Inbox listesi için hafif versiyon. Frontend LeadListPanel `tags` ve
+     * `language` alanlarını da okuyor; ikisini de basic DTO'ya ekliyoruz
+     * ki render sırasında undefined.slice() patlamasın.
      */
     public static ConversationDto fromEntityBasic(Conversation c) {
         if (c == null) return null;
@@ -111,6 +113,7 @@ public class ConversationDto {
         return ConversationDto.builder()
                 .id(c.getId())
                 .leadId(c.getLeadId())
+                .patientId(c.getPatientId())
                 .assignedAgentId(c.getAssignedAgentId())
                 .assignedAgentName(c.getAssignedAgentName())
                 .channel(c.getChannel())
@@ -123,6 +126,8 @@ public class ConversationDto {
                 .lastMessageAt(c.getLastMessageAt())
                 .lastMessageSender(c.getLastMessageSender())
                 .unreadCount(c.getUnreadCount())
+                .tags(c.getTags())
+                .language(c.getLanguage())
                 .isPinned(c.getIsPinned())
                 .createdAt(c.getCreatedAt())
                 .build();
