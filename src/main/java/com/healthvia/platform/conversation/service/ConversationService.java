@@ -30,6 +30,12 @@ public interface ConversationService {
     Page<Conversation> findByChannel(Channel channel, Pageable pageable);
     Page<Conversation> search(String keyword, Pageable pageable);
 
+    /**
+     * Generic inbox listing combining optional assignedAgentId / channel / free-text
+     * filters into one Mongo query. Used by the agent-dashboard inbox left panel.
+     */
+    Page<Conversation> list(String assignedAgentId, Channel channel, String search, Pageable pageable);
+
     // === DURUM ===
     Conversation changeStatus(String id, ConversationStatus newStatus);
     Conversation resolve(String id);
