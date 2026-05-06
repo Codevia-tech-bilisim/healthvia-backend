@@ -72,6 +72,8 @@ jobs:
             MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             CONTACT_EMAIL=info@codevia.tech
+            TELEGRAM_CHANNEL_ENABLED=${{ vars.TELEGRAM_CHANNEL_ENABLED || 'false' }}
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           secrets: |
             MONGODB_URI=MONGODB_URI:latest
             JWT_SECRET=JWT_SECRET:latest
