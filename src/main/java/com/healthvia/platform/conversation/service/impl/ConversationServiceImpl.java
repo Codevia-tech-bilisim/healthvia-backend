@@ -5,9 +5,15 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConversationServiceImpl implements ConversationService {
 
     private final ConversationRepository repository;
+    private final MongoTemplate mongoTemplate;
 
     // === CRUD ===
 
@@ -139,6 +146,39 @@ public class ConversationServiceImpl implements ConversationService {
     @Transactional(readOnly = true)
     public Page<Conversation> search(String keyword, Pageable pageable) {
         return repository.search(keyword, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Conversation> list(String assignedAgentId, Channel channel, String search, Pageable pageable) {
+        Criteria base = Criteria.where("deleted").is(false);
+        if (assignedAgentId != null && !assignedAgentId.isBlank()) {
+            base = base.and("assignedAgentId").is(assignedAgentId);
+        }
+        if (channel != null) {
+            base = base.and("channel").is(channel);
+        }
+        Query query = new Query(base);
+        if (search != null && !search.isBlank()) {
+            String regex = Pattern.quote(search.trim());
+            query.addCriteria(new Criteria().orOperator(
+                    Criteria.where("subject").regex(regex, "i"),
+                    Criteria.where("lastMessagePreview").regex(regex, "i"),
+                    Criteria.where("tags").regex(regex, "i")));
+        }
+
+        long total = mongoTemplate.count(query, Conversation.class);
+
+        Pageable effective = pageable;
+        if (pageable.getSort().isUnsorted()) {
+            effective = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(), pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "lastMessageAt"));
+        }
+        query.with(effective);
+
+        List<Conversation> content = mongoTemplate.find(query, Conversation.class);
+        return PageableExecutionUtils.getPage(content, effective, () -> total);
     }
 
     // === DURUM ===

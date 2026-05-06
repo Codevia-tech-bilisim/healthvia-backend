@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/conversations")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','CEO','AGENT')")
 @RequiredArgsConstructor
 @Slf4j
 public class ConversationController {
@@ -67,6 +67,22 @@ public class ConversationController {
     }
 
     // === LİSTELEME ===
+
+    /**
+     * Generic inbox listing for the agent dashboard. Combines optional
+     * assignedAgentId / channel / free-text filters into one query. When all
+     * filters are absent, returns every non-deleted conversation ordered by
+     * lastMessageAt desc.
+     */
+    @GetMapping
+    public ApiResponse<Page<ConversationDto>> list(
+            @RequestParam(required = false) String assignedAgentId,
+            @RequestParam(required = false) Channel channel,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 30) Pageable pageable) {
+        Page<Conversation> page = conversationService.list(assignedAgentId, channel, search, pageable);
+        return ApiResponse.success(page.map(ConversationDto::fromEntityBasic));
+    }
 
     @GetMapping("/my")
     public ApiResponse<Page<ConversationDto>> getMyConversations(
