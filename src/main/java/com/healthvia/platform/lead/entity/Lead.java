@@ -207,6 +207,7 @@ public class Lead extends BaseEntity {
     public enum LeadSource {
         WHATSAPP("WhatsApp"),
         INSTAGRAM("Instagram DM"),
+        TELEGRAM("Telegram"),
         EMAIL("Email"),
         WEB_FORM("Web Form"),
         PHONE("Telefon"),

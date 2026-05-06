@@ -230,7 +230,7 @@ public class MessageInboundService {
             case EMAIL -> Lead.LeadSource.EMAIL;
             case PHONE -> Lead.LeadSource.PHONE;
             case SMS -> Lead.LeadSource.PHONE;
-            case TELEGRAM -> Lead.LeadSource.OTHER;
+            case TELEGRAM -> Lead.LeadSource.TELEGRAM;
             case LIVE_CHAT -> Lead.LeadSource.LIVE_CHAT;
             case WEB_FORM -> Lead.LeadSource.WEB_FORM;
             case INTERNAL -> Lead.LeadSource.OTHER;
