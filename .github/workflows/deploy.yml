@@ -74,6 +74,8 @@ jobs:
             CONTACT_EMAIL=info@codevia.tech
             TELEGRAM_CHANNEL_ENABLED=${{ vars.TELEGRAM_CHANNEL_ENABLED || 'false' }}
             TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            TELEGRAM_WEBHOOK_URL=${{ vars.TELEGRAM_WEBHOOK_URL || 'https://api.healthviatech.website/api/v1/telegram/webhook' }}
+            TELEGRAM_WEBHOOK_SECRET_TOKEN=${{ secrets.TELEGRAM_WEBHOOK_SECRET_TOKEN }}
           secrets: |
             MONGODB_URI=MONGODB_URI:latest
             JWT_SECRET=JWT_SECRET:latest

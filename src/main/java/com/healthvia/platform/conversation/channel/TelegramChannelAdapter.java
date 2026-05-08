@@ -9,12 +9,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,10 +25,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Telegram Bot ⇄ HealthVia. Long-poll {@code /getUpdates} every cycle so the
- * backend can run behind NAT without a public webhook. Each text message
- * becomes an InboundChannelMessage; outbound replies hit
- * {@code /sendMessage}.
+ * Telegram Bot ⇄ HealthVia. Webhook delivery: Telegram POSTs each Update to
+ * {@code /api/v1/telegram/webhook}; outbound replies hit {@code /sendMessage}.
  *
  * Disabled unless {@code telegram.channel.enabled=true} and a bot token is
  * provided. Get a token from @BotFather on Telegram.
@@ -37,7 +34,8 @@ import lombok.extern.slf4j.Slf4j;
  * Required properties:
  *   telegram.channel.enabled=true
  *   telegram.bot-token=123456:AAH...
- *   telegram.poll.timeout-seconds=25
+ *   telegram.webhook.url=https://api.example.com/api/v1/telegram/webhook
+ *   telegram.webhook.secret-token=<random>   (recommended)
  */
 @Slf4j
 @Component
@@ -55,29 +53,62 @@ public class TelegramChannelAdapter implements ChannelAdapter {
     @Value("${telegram.bot-token}")
     private String botToken;
 
-    @Value("${telegram.poll.timeout-seconds:25}")
-    private int longPollTimeoutSec;
+    @Value("${telegram.webhook.url:}")
+    private String webhookUrl;
 
-    private final AtomicLong lastUpdateId = new AtomicLong(0);
+    @Value("${telegram.webhook.secret-token:}")
+    private String webhookSecretToken;
 
     @PostConstruct
-    public void verify() {
+    public void registerWebhook() {
         try {
-            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder()
+            HttpResponse<String> me = HTTP.send(HttpRequest.newBuilder()
                 .uri(URI.create(BASE + botToken + "/getMe"))
                 .timeout(Duration.ofSeconds(8))
                 .GET().build(), HttpResponse.BodyHandlers.ofString());
-            if (r.statusCode() == 200) {
-                JsonNode body = MAPPER.readTree(r.body());
-                JsonNode bot = body.path("result");
+            if (me.statusCode() == 200) {
+                JsonNode bot = MAPPER.readTree(me.body()).path("result");
                 log.info("✅ Telegram bot connected: @{} ({})",
                     bot.path("username").asText("unknown"),
                     bot.path("first_name").asText(""));
             } else {
-                log.warn("Telegram getMe returned {}: {}", r.statusCode(), r.body());
+                log.warn("Telegram getMe returned {}: {}", me.statusCode(), me.body());
+                return;
             }
         } catch (Exception e) {
             log.warn("Telegram bot verification failed: {}", e.getMessage());
+            return;
+        }
+
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            log.warn("telegram.webhook.url is empty; skipping setWebhook. "
+                + "Set TELEGRAM_WEBHOOK_URL to your public POST endpoint.");
+            return;
+        }
+
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("url", webhookUrl);
+            payload.put("allowed_updates", new String[] {"message"});
+            payload.put("drop_pending_updates", false);
+            if (webhookSecretToken != null && !webhookSecretToken.isBlank()) {
+                payload.put("secret_token", webhookSecretToken);
+            }
+            String body = MAPPER.writeValueAsString(payload);
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder()
+                .uri(URI.create(BASE + botToken + "/setWebhook"))
+                .timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "application/json; charset=utf-8")
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build(), HttpResponse.BodyHandlers.ofString());
+            JsonNode resp = MAPPER.readTree(r.body());
+            if (r.statusCode() == 200 && resp.path("ok").asBoolean(false)) {
+                log.info("✅ Telegram webhook registered: {}", webhookUrl);
+            } else {
+                log.error("Telegram setWebhook failed ({}): {}", r.statusCode(), r.body());
+            }
+        } catch (Exception e) {
+            log.error("Telegram setWebhook exception: {}", e.getMessage());
         }
     }
 
@@ -87,35 +118,13 @@ public class TelegramChannelAdapter implements ChannelAdapter {
     }
 
     /**
-     * Poll for updates. Spaced 1 s apart so we don't spam the server when
-     * long-polling returns immediately (no updates).
+     * Called by {@link TelegramWebhookController} for each Update Telegram POSTs.
+     * The Update payload mirrors the items inside getUpdates()'s result array.
      */
-    @Scheduled(fixedDelayString = "${telegram.poll.gap-ms:1000}", initialDelayString = "${telegram.poll.initial-ms:5000}")
-    public void pollUpdates() {
-        try {
-            String url = BASE + botToken + "/getUpdates"
-                + "?timeout=" + longPollTimeoutSec
-                + "&offset=" + (lastUpdateId.get() + 1);
-            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(longPollTimeoutSec + 5))
-                .GET().build(), HttpResponse.BodyHandlers.ofString());
-            if (r.statusCode() != 200) {
-                log.debug("Telegram getUpdates {}: {}", r.statusCode(), r.body());
-                return;
-            }
-            JsonNode body = MAPPER.readTree(r.body());
-            if (!body.path("ok").asBoolean(false)) return;
-            for (JsonNode upd : body.path("result")) {
-                long updateId = upd.path("update_id").asLong();
-                if (updateId > lastUpdateId.get()) lastUpdateId.set(updateId);
-                JsonNode msg = upd.path("message");
-                if (msg.isMissingNode() || msg.isNull()) continue;
-                ingestUpdate(msg);
-            }
-        } catch (Exception e) {
-            log.debug("Telegram poll exception: {}", e.getMessage());
-        }
+    public void processUpdate(JsonNode update) {
+        JsonNode msg = update.path("message");
+        if (msg.isMissingNode() || msg.isNull()) return;
+        ingestUpdate(msg);
     }
 
     private void ingestUpdate(JsonNode msg) {
