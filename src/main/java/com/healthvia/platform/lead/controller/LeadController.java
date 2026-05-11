@@ -22,11 +22,25 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Lead REST endpoints.
+ *
+ * Authorization: webhook/public endpoints stay open; every authenticated
+ * endpoint allows SUPERADMIN, ADMIN, CEO and AGENT because the agent
+ * dashboard inbox needs read+write access to leads it's working on.
+ * Spring's hasRole('ADMIN') matches the exact role name only, so the
+ * previous guard locked out SUPERADMIN and AGENT entirely — which is why
+ * the inbox side panel surfaced "yetkiniz yok" the moment a conversation
+ * was opened.
+ */
 @RestController
 @RequestMapping("/api/v1/leads")
 @RequiredArgsConstructor
 @Slf4j
 public class LeadController {
+
+    private static final String STAFF_ROLES =
+            "hasAnyRole('SUPERADMIN','ADMIN','CEO','AGENT')";
 
     private final LeadService leadService;
 
@@ -89,35 +103,26 @@ public class LeadController {
     }
 
     // ===================================================================
-    // ADMIN — CRUD
+    // STAFF — CRUD
     // ===================================================================
 
-    /**
-     * Manuel lead oluştur (telefon, walk-in vb.)
-     */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> create(@Valid @RequestBody Lead request) {
         log.info("Creating lead manually: {}", request.getSource());
         Lead created = leadService.create(request);
         return ApiResponse.success(LeadDto.fromEntity(created), "Lead oluşturuldu");
     }
 
-    /**
-     * Lead güncelle
-     */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> update(@PathVariable String id, @RequestBody Lead request) {
         Lead updated = leadService.update(id, request);
         return ApiResponse.success(LeadDto.fromEntity(updated), "Lead güncellendi");
     }
 
-    /**
-     * Lead detayı
-     */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> getById(@PathVariable String id) {
         return leadService.findById(id)
                 .map(LeadDto::fromEntity)
@@ -125,11 +130,8 @@ public class LeadController {
                 .orElse(ApiResponse.error("Lead bulunamadı"));
     }
 
-    /**
-     * Lead sil
-     */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Void> delete(@PathVariable String id) {
         String deletedBy = SecurityUtils.getCurrentUserId();
         leadService.delete(id, deletedBy);
@@ -137,24 +139,18 @@ public class LeadController {
     }
 
     // ===================================================================
-    // ADMIN — LİSTELEME & FİLTRELEME
+    // STAFF — LİSTELEME & FİLTRELEME
     // ===================================================================
 
-    /**
-     * Tüm leadler
-     */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Page<LeadDto>> getAll(@PageableDefault(size = 20) Pageable pageable) {
         Page<Lead> leads = leadService.findAll(pageable);
         return ApiResponse.success(leads.map(LeadDto::fromEntityBasic));
     }
 
-    /**
-     * Duruma göre
-     */
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Page<LeadDto>> getByStatus(
             @PathVariable LeadStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -162,69 +158,51 @@ public class LeadController {
         return ApiResponse.success(leads.map(LeadDto::fromEntityBasic));
     }
 
-    /**
-     * Bana atanmış leadler
-     */
     @GetMapping("/my")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Page<LeadDto>> getMyLeads(@PageableDefault(size = 20) Pageable pageable) {
         String agentId = SecurityUtils.getCurrentUserId();
         Page<Lead> leads = leadService.findByAgent(agentId, pageable);
         return ApiResponse.success(leads.map(LeadDto::fromEntityBasic));
     }
 
-    /**
-     * Kaynağa göre
-     */
     @GetMapping("/source/{source}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Page<LeadDto>> getBySource(
             @PathVariable LeadSource source,
             @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.success(leadService.findBySource(source, pageable).map(LeadDto::fromEntityBasic));
     }
 
-    /**
-     * Etiketlere göre
-     */
     @GetMapping("/tags")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Page<LeadDto>> getByTags(
             @RequestParam List<String> tags,
             @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.success(leadService.findByTags(tags, pageable).map(LeadDto::fromEntityBasic));
     }
 
-    /**
-     * Arama
-     */
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<Page<LeadDto>> search(
             @RequestParam String keyword,
             @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.success(leadService.search(keyword, pageable).map(LeadDto::fromEntityBasic));
     }
 
-    /**
-     * Atanmamış leadler
-     */
     @GetMapping("/unassigned")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<List<LeadDto>> getUnassigned() {
         List<Lead> leads = leadService.findUnassigned();
         return ApiResponse.success(leads.stream().map(LeadDto::fromEntityBasic).toList());
     }
 
     // ===================================================================
-    // ADMIN — DURUM & ATAMA İŞLEMLERİ
+    // STAFF — DURUM & ATAMA İŞLEMLERİ
     // ===================================================================
 
-    /**
-     * Durum değiştir
-     */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> changeStatus(
             @PathVariable String id,
             @RequestParam LeadStatus status,
@@ -234,11 +212,8 @@ public class LeadController {
         return ApiResponse.success(LeadDto.fromEntity(updated), "Durum güncellendi");
     }
 
-    /**
-     * Agent'a ata
-     */
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> assign(
             @PathVariable String id,
             @RequestParam String agentId) {
@@ -246,11 +221,8 @@ public class LeadController {
         return ApiResponse.success(LeadDto.fromEntity(updated), "Lead atandı");
     }
 
-    /**
-     * Otomatik ata
-     */
     @PatchMapping("/{id}/auto-assign")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> autoAssign(@PathVariable String id) {
         Lead updated = leadService.autoAssign(id);
         if (updated.getAssignedAgentId() != null) {
@@ -259,11 +231,8 @@ public class LeadController {
         return ApiResponse.error("Müsait agent bulunamadı");
     }
 
-    /**
-     * Başka agent'a transfer et
-     */
     @PatchMapping("/{id}/transfer")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> transfer(
             @PathVariable String id,
             @RequestParam String newAgentId) {
@@ -272,11 +241,8 @@ public class LeadController {
         return ApiResponse.success(LeadDto.fromEntity(updated), "Lead transfer edildi");
     }
 
-    /**
-     * Dönüştür (hasta kaydı oluştur)
-     */
     @PatchMapping("/{id}/convert")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> convert(
             @PathVariable String id,
             @RequestParam String patientId,
@@ -286,11 +252,8 @@ public class LeadController {
         return ApiResponse.success(LeadDto.fromEntity(updated), "Lead dönüştürüldü");
     }
 
-    /**
-     * Kaybedildi olarak işaretle
-     */
     @PatchMapping("/{id}/lost")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> markAsLost(
             @PathVariable String id,
             @RequestParam String reason) {
@@ -299,11 +262,8 @@ public class LeadController {
         return ApiResponse.success(LeadDto.fromEntity(updated), "Lead kaybedildi olarak işaretlendi");
     }
 
-    /**
-     * Spam olarak işaretle
-     */
     @PatchMapping("/{id}/spam")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> markAsSpam(@PathVariable String id) {
         String changedBy = SecurityUtils.getCurrentUserId();
         Lead updated = leadService.markAsSpam(id, changedBy);
@@ -311,14 +271,11 @@ public class LeadController {
     }
 
     // ===================================================================
-    // ADMIN — TAKİP & ETİKET
+    // STAFF — TAKİP & ETİKET
     // ===================================================================
 
-    /**
-     * Takip planla
-     */
     @PatchMapping("/{id}/follow-up")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> scheduleFollowUp(
             @PathVariable String id,
             @RequestParam LocalDateTime followUpAt) {
@@ -326,41 +283,29 @@ public class LeadController {
         return ApiResponse.success(LeadDto.fromEntity(updated), "Takip planlandı");
     }
 
-    /**
-     * Takip gereken leadler
-     */
     @GetMapping("/needs-follow-up")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<List<LeadDto>> getNeedingFollowUp() {
         List<Lead> leads = leadService.findLeadsNeedingFollowUp();
         return ApiResponse.success(leads.stream().map(LeadDto::fromEntityBasic).toList());
     }
 
-    /**
-     * Etiket ekle
-     */
     @PatchMapping("/{id}/tags/add")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> addTag(@PathVariable String id, @RequestParam String tag) {
         Lead updated = leadService.addTag(id, tag);
         return ApiResponse.success(LeadDto.fromEntity(updated), "Etiket eklendi");
     }
 
-    /**
-     * Etiket kaldır
-     */
     @PatchMapping("/{id}/tags/remove")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> removeTag(@PathVariable String id, @RequestParam String tag) {
         Lead updated = leadService.removeTag(id, tag);
         return ApiResponse.success(LeadDto.fromEntity(updated), "Etiket kaldırıldı");
     }
 
-    /**
-     * Hasta ile eşleştir
-     */
     @PatchMapping("/{id}/link-patient")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> linkToPatient(
             @PathVariable String id,
             @RequestParam String patientId) {
@@ -369,11 +314,11 @@ public class LeadController {
     }
 
     // ===================================================================
-    // ADMIN — İSTATİSTİK
+    // STAFF — İSTATİSTİK
     // ===================================================================
 
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadStatistics> getStatistics() {
         LeadStatistics stats = new LeadStatistics();
         stats.setTotal(leadService.countAll());

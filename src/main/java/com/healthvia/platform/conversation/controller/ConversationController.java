@@ -11,11 +11,14 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.healthvia.platform.auth.security.UserPrincipal;
 import com.healthvia.platform.common.dto.ApiResponse;
 import com.healthvia.platform.common.util.SecurityUtils;
 import com.healthvia.platform.conversation.dto.ConversationDto;
@@ -24,6 +27,10 @@ import com.healthvia.platform.conversation.entity.Conversation.*;
 import com.healthvia.platform.conversation.service.ConversationService;
 import com.healthvia.platform.lead.entity.Lead;
 import com.healthvia.platform.lead.repository.LeadRepository;
+import com.healthvia.platform.message.dto.MessageDto;
+import com.healthvia.platform.message.entity.Message;
+import com.healthvia.platform.message.entity.Message.MessageType;
+import com.healthvia.platform.message.service.MessageService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final MessageService messageService;
     private final LeadRepository leadRepository;
 
     // === CRUD ===
@@ -74,6 +82,62 @@ public class ConversationController {
     public ApiResponse<Void> delete(@PathVariable String id) {
         conversationService.delete(id, SecurityUtils.getCurrentUserId());
         return ApiResponse.success("Konuşma silindi");
+    }
+
+    // === MESAJLAR (nested under conversation — frontend kontratı) ===
+
+    /**
+     * Konuşmaya ait tüm mesajlar, kronolojik.
+     *
+     * Frontend bu endpoint'i `/api/v1/conversations/{id}/messages` altında
+     * bekliyor (`MessageController` ise mesajları `/api/v1/messages/...`
+     * altında servis ediyor). Burada kısa bir proxy yazıp MessageService'e
+     * delege ediyoruz — böylece path uyuşmazlığı inbox'ı boş bırakmıyor.
+     */
+    @GetMapping("/{conversationId}/messages")
+    public ApiResponse<List<MessageDto>> getMessages(@PathVariable String conversationId) {
+        Pageable pageable = PageRequest.of(0, 200, Sort.by(Sort.Direction.ASC, "createdAt"));
+        Page<Message> page = messageService.findByConversation(conversationId, pageable);
+        List<MessageDto> dtos = page.getContent().stream()
+                .map(MessageDto::fromEntity)
+                .toList();
+        return ApiResponse.success(dtos);
+    }
+
+    /**
+     * Agent yanıtı / dahili not gönderme. Frontend `{content, type, templateId}`
+     * şeklinde body yolluyor. `type` "NOTE" ise dahili not, diğer durumlarda
+     * standart agent mesajı olarak persist edip MessageService'e delege ediyoruz.
+     */
+    @PostMapping("/{conversationId}/messages")
+    public ApiResponse<MessageDto> postMessage(
+            @PathVariable String conversationId,
+            @RequestBody SendMessagePayload body) {
+        String agentId = SecurityUtils.getCurrentUserId();
+        String senderName = SecurityUtils.getCurrentUser()
+                .map(UserPrincipal::getFullName)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .orElse(agentId);
+
+        String type = body.getType() == null ? "TEXT" : body.getType().toUpperCase();
+        String content = body.getContent() == null ? "" : body.getContent();
+
+        Message persisted = switch (type) {
+            case "NOTE" -> messageService.addInternalNote(conversationId, agentId, senderName, content);
+            case "TEMPLATE" -> messageService.sendTemplateMessage(
+                    conversationId, agentId, senderName, body.getTemplateId(), null, content);
+            default -> messageService.sendAgentMessage(
+                    conversationId, agentId, senderName, content, MessageType.TEXT, null);
+        };
+        return ApiResponse.success(MessageDto.fromEntity(persisted));
+    }
+
+    @lombok.Data
+    public static class SendMessagePayload {
+        private String content;
+        private String type;
+        private String templateId;
     }
 
     // === LİSTELEME ===
@@ -175,6 +239,12 @@ public class ConversationController {
 
     @PatchMapping("/{id}/read")
     public ApiResponse<ConversationDto> markAsRead(@PathVariable String id) {
+        Conversation updated = conversationService.markAsRead(id);
+        return ApiResponse.success(enrich(updated));
+    }
+
+    @PostMapping("/{id}/read")
+    public ApiResponse<ConversationDto> markAsReadPost(@PathVariable String id) {
         Conversation updated = conversationService.markAsRead(id);
         return ApiResponse.success(enrich(updated));
     }
