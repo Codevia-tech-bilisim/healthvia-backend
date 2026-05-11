@@ -1,7 +1,14 @@
 // conversation/controller/ConversationController.java
 package com.healthvia.platform.conversation.controller;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +22,8 @@ import com.healthvia.platform.conversation.dto.ConversationDto;
 import com.healthvia.platform.conversation.entity.Conversation;
 import com.healthvia.platform.conversation.entity.Conversation.*;
 import com.healthvia.platform.conversation.service.ConversationService;
+import com.healthvia.platform.lead.entity.Lead;
+import com.healthvia.platform.lead.repository.LeadRepository;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +37,14 @@ import lombok.extern.slf4j.Slf4j;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final LeadRepository leadRepository;
 
     // === CRUD ===
 
     @PostMapping
     public ApiResponse<ConversationDto> create(@Valid @RequestBody Conversation request) {
         Conversation created = conversationService.create(request);
-        return ApiResponse.success(ConversationDto.fromEntity(created), "Konuşma oluşturuldu");
+        return ApiResponse.success(enrich(created), "Konuşma oluşturuldu");
     }
 
     @PostMapping("/start")
@@ -43,13 +53,13 @@ public class ConversationController {
             @RequestParam Channel channel) {
         String agentId = SecurityUtils.getCurrentUserId();
         Conversation conv = conversationService.getOrCreateForLead(leadId, channel, agentId);
-        return ApiResponse.success(ConversationDto.fromEntity(conv));
+        return ApiResponse.success(enrich(conv));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<ConversationDto> getById(@PathVariable String id) {
         return conversationService.findById(id)
-                .map(ConversationDto::fromEntity)
+                .map(this::enrich)
                 .map(ApiResponse::success)
                 .orElse(ApiResponse.error("Konuşma bulunamadı"));
     }
@@ -57,7 +67,7 @@ public class ConversationController {
     @PutMapping("/{id}")
     public ApiResponse<ConversationDto> update(@PathVariable String id, @RequestBody Conversation request) {
         Conversation updated = conversationService.update(id, request);
-        return ApiResponse.success(ConversationDto.fromEntity(updated), "Konuşma güncellendi");
+        return ApiResponse.success(enrich(updated), "Konuşma güncellendi");
     }
 
     @DeleteMapping("/{id}")
@@ -81,7 +91,7 @@ public class ConversationController {
             @RequestParam(required = false) String search,
             @PageableDefault(size = 30) Pageable pageable) {
         Page<Conversation> page = conversationService.list(assignedAgentId, channel, search, pageable);
-        return ApiResponse.success(page.map(ConversationDto::fromEntityBasic));
+        return ApiResponse.success(enrichBasic(page));
     }
 
     @GetMapping("/my")
@@ -89,7 +99,7 @@ public class ConversationController {
             @PageableDefault(size = 30) Pageable pageable) {
         String agentId = SecurityUtils.getCurrentUserId();
         Page<Conversation> page = conversationService.findByAgent(agentId, pageable);
-        return ApiResponse.success(page.map(ConversationDto::fromEntityBasic));
+        return ApiResponse.success(enrichBasic(page));
     }
 
     @GetMapping("/my/status/{status}")
@@ -98,43 +108,41 @@ public class ConversationController {
             @PageableDefault(size = 30) Pageable pageable) {
         String agentId = SecurityUtils.getCurrentUserId();
         Page<Conversation> page = conversationService.findByAgentAndStatus(agentId, status, pageable);
-        return ApiResponse.success(page.map(ConversationDto::fromEntityBasic));
+        return ApiResponse.success(enrichBasic(page));
     }
 
     @GetMapping("/my/unread")
     public ApiResponse<List<ConversationDto>> getMyUnread() {
         String agentId = SecurityUtils.getCurrentUserId();
         List<Conversation> convs = conversationService.findUnreadByAgent(agentId);
-        return ApiResponse.success(convs.stream().map(ConversationDto::fromEntityBasic).toList());
+        return ApiResponse.success(enrichBasic(convs));
     }
 
     @GetMapping("/my/pinned")
     public ApiResponse<List<ConversationDto>> getMyPinned() {
         String agentId = SecurityUtils.getCurrentUserId();
         List<Conversation> convs = conversationService.findPinnedByAgent(agentId);
-        return ApiResponse.success(convs.stream().map(ConversationDto::fromEntityBasic).toList());
+        return ApiResponse.success(enrichBasic(convs));
     }
 
     @GetMapping("/lead/{leadId}")
     public ApiResponse<List<ConversationDto>> getByLead(@PathVariable String leadId) {
         List<Conversation> convs = conversationService.findByLeadId(leadId);
-        return ApiResponse.success(convs.stream().map(ConversationDto::fromEntityBasic).toList());
+        return ApiResponse.success(enrichBasic(convs));
     }
 
     @GetMapping("/status/{status}")
     public ApiResponse<Page<ConversationDto>> getByStatus(
             @PathVariable ConversationStatus status,
             @PageableDefault(size = 30) Pageable pageable) {
-        return ApiResponse.success(conversationService.findByStatus(status, pageable)
-                .map(ConversationDto::fromEntityBasic));
+        return ApiResponse.success(enrichBasic(conversationService.findByStatus(status, pageable)));
     }
 
     @GetMapping("/search")
     public ApiResponse<Page<ConversationDto>> search(
             @RequestParam String keyword,
             @PageableDefault(size = 30) Pageable pageable) {
-        return ApiResponse.success(conversationService.search(keyword, pageable)
-                .map(ConversationDto::fromEntityBasic));
+        return ApiResponse.success(enrichBasic(conversationService.search(keyword, pageable)));
     }
 
     // === DURUM İŞLEMLERİ ===
@@ -144,31 +152,31 @@ public class ConversationController {
             @PathVariable String id,
             @RequestParam ConversationStatus status) {
         Conversation updated = conversationService.changeStatus(id, status);
-        return ApiResponse.success(ConversationDto.fromEntity(updated), "Durum güncellendi");
+        return ApiResponse.success(enrich(updated), "Durum güncellendi");
     }
 
     @PatchMapping("/{id}/resolve")
     public ApiResponse<ConversationDto> resolve(@PathVariable String id) {
         Conversation updated = conversationService.resolve(id);
-        return ApiResponse.success(ConversationDto.fromEntity(updated), "Konuşma çözüldü");
+        return ApiResponse.success(enrich(updated), "Konuşma çözüldü");
     }
 
     @PatchMapping("/{id}/archive")
     public ApiResponse<ConversationDto> archive(@PathVariable String id) {
         Conversation updated = conversationService.archive(id);
-        return ApiResponse.success(ConversationDto.fromEntity(updated), "Konuşma arşivlendi");
+        return ApiResponse.success(enrich(updated), "Konuşma arşivlendi");
     }
 
     @PatchMapping("/{id}/reopen")
     public ApiResponse<ConversationDto> reopen(@PathVariable String id) {
         Conversation updated = conversationService.reopen(id);
-        return ApiResponse.success(ConversationDto.fromEntity(updated), "Konuşma yeniden açıldı");
+        return ApiResponse.success(enrich(updated), "Konuşma yeniden açıldı");
     }
 
     @PatchMapping("/{id}/read")
     public ApiResponse<ConversationDto> markAsRead(@PathVariable String id) {
         Conversation updated = conversationService.markAsRead(id);
-        return ApiResponse.success(ConversationDto.fromEntity(updated));
+        return ApiResponse.success(enrich(updated));
     }
 
     // === AGENT & ETİKET & PIN ===
@@ -178,26 +186,26 @@ public class ConversationController {
             @PathVariable String id,
             @RequestParam String agentId) {
         Conversation updated = conversationService.assignToAgent(id, agentId);
-        return ApiResponse.success(ConversationDto.fromEntity(updated), "Konuşma atandı");
+        return ApiResponse.success(enrich(updated), "Konuşma atandı");
     }
 
     @PatchMapping("/{id}/tags/add")
     public ApiResponse<ConversationDto> addTag(@PathVariable String id, @RequestParam String tag) {
         Conversation updated = conversationService.addTag(id, tag);
-        return ApiResponse.success(ConversationDto.fromEntity(updated));
+        return ApiResponse.success(enrich(updated));
     }
 
     @PatchMapping("/{id}/tags/remove")
     public ApiResponse<ConversationDto> removeTag(@PathVariable String id, @RequestParam String tag) {
         Conversation updated = conversationService.removeTag(id, tag);
-        return ApiResponse.success(ConversationDto.fromEntity(updated));
+        return ApiResponse.success(enrich(updated));
     }
 
     @PatchMapping("/{id}/toggle-pin")
     public ApiResponse<ConversationDto> togglePin(@PathVariable String id) {
         Conversation updated = conversationService.togglePin(id);
         String msg = Boolean.TRUE.equals(updated.getIsPinned()) ? "Sabitlendi" : "Sabitleme kaldırıldı";
-        return ApiResponse.success(ConversationDto.fromEntity(updated), msg);
+        return ApiResponse.success(enrich(updated), msg);
     }
 
     // === İLİŞKİ ===
@@ -206,14 +214,14 @@ public class ConversationController {
     public ApiResponse<ConversationDto> linkTicket(
             @PathVariable String id, @RequestParam String ticketId) {
         Conversation updated = conversationService.linkTicket(id, ticketId);
-        return ApiResponse.success(ConversationDto.fromEntity(updated));
+        return ApiResponse.success(enrich(updated));
     }
 
     @PatchMapping("/{id}/link-appointment")
     public ApiResponse<ConversationDto> linkAppointment(
             @PathVariable String id, @RequestParam String appointmentId) {
         Conversation updated = conversationService.linkAppointment(id, appointmentId);
-        return ApiResponse.success(ConversationDto.fromEntity(updated));
+        return ApiResponse.success(enrich(updated));
     }
 
     // === İSTATİSTİK ===
@@ -239,5 +247,42 @@ public class ConversationController {
         private long agentReply;
         private long resolved;
         private long myUnread;
+    }
+
+    // === HELPERS ===
+
+    /** Single-conversation enrichment: one extra Lead query for the join. */
+    private ConversationDto enrich(Conversation c) {
+        if (c == null) return null;
+        Lead lead = c.getLeadId() == null
+                ? null
+                : leadRepository.findById(c.getLeadId()).orElse(null);
+        return ConversationDto.fromEntity(c, lead);
+    }
+
+    /** Page enrichment with a single batched Lead fetch (no N+1). */
+    private Page<ConversationDto> enrichBasic(Page<Conversation> page) {
+        Map<String, Lead> leadMap = batchFetchLeads(page.getContent());
+        return page.map(c -> ConversationDto.fromEntityBasic(
+                c, c.getLeadId() == null ? null : leadMap.get(c.getLeadId())));
+    }
+
+    /** List enrichment with a single batched Lead fetch. */
+    private List<ConversationDto> enrichBasic(List<Conversation> convs) {
+        Map<String, Lead> leadMap = batchFetchLeads(convs);
+        return convs.stream()
+                .map(c -> ConversationDto.fromEntityBasic(
+                        c, c.getLeadId() == null ? null : leadMap.get(c.getLeadId())))
+                .toList();
+    }
+
+    private Map<String, Lead> batchFetchLeads(Collection<Conversation> convs) {
+        Set<String> ids = convs.stream()
+                .map(Conversation::getLeadId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) return Collections.emptyMap();
+        return StreamSupport.stream(leadRepository.findAllById(ids).spliterator(), false)
+                .collect(Collectors.toMap(Lead::getId, l -> l));
     }
 }
