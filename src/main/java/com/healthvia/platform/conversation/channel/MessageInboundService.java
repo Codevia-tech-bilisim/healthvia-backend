@@ -7,7 +7,6 @@ import java.util.Set;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.healthvia.platform.conversation.entity.Conversation;
 import com.healthvia.platform.conversation.repository.ConversationRepository;
@@ -38,10 +37,15 @@ import lombok.extern.slf4j.Slf4j;
  *   - Lead by externalUserId stored in tags (telegram://chatId etc.)
  *   - Otherwise: create a fresh Lead in NEW status from the inbound msg.
  */
+// NOTE: intentionally NOT @Transactional. MongoDB writes are per-document
+// atomic; wrapping the whole ingest in a transaction means a late-stage
+// failure (e.g. a stale @Version conflict on the conversation counter
+// update) would roll back the message we already saved — the message would
+// vanish on refresh after the agent already saw it via WebSocket. Each
+// repo.save here is independent on purpose.
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@Transactional
 public class MessageInboundService {
 
     private final ConversationRepository conversationRepository;
@@ -86,13 +90,20 @@ public class MessageInboundService {
             .build();
         Message savedMsg = messageRepository.save(msg);
 
-        // 4. Bump conversation counters
-        conversation.setLastMessageAt(savedMsg.getDeliveredAt());
-        conversation.setLastMessagePreview(safePreview(in.getText()));
-        conversation.setLastMessageSender("LEAD");
-        conversation.setTotalMessages((conversation.getTotalMessages() == null ? 0 : conversation.getTotalMessages()) + 1);
-        conversation.setUnreadCount((conversation.getUnreadCount() == null ? 0 : conversation.getUnreadCount()) + 1);
-        conversationRepository.save(conversation);
+        // 4. Bump conversation counters. Wrapped in try/catch so an optimistic
+        // locking failure here (two messages arriving back-to-back) doesn't
+        // mask the fact that the message itself was already persisted.
+        try {
+            conversation.setLastMessageAt(savedMsg.getDeliveredAt());
+            conversation.setLastMessagePreview(safePreview(in.getText()));
+            conversation.setLastMessageSender("LEAD");
+            conversation.setTotalMessages((conversation.getTotalMessages() == null ? 0 : conversation.getTotalMessages()) + 1);
+            conversation.setUnreadCount((conversation.getUnreadCount() == null ? 0 : conversation.getUnreadCount()) + 1);
+            conversationRepository.save(conversation);
+        } catch (Exception e) {
+            log.warn("Conversation counter update failed for {}; message persisted anyway: {}",
+                conversation.getId(), e.getMessage());
+        }
 
         // 5. Broadcast
         try {
