@@ -2,6 +2,7 @@ package com.healthvia.platform.common.seed;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,9 @@ import com.healthvia.platform.conversation.entity.Conversation.ConversationPrior
 import com.healthvia.platform.conversation.entity.Conversation.ConversationStatus;
 import com.healthvia.platform.conversation.repository.ConversationRepository;
 import com.healthvia.platform.lead.entity.Lead;
+import com.healthvia.platform.lead.entity.Lead.AssignmentMethod;
 import com.healthvia.platform.lead.entity.Lead.LeadSource;
+import com.healthvia.platform.lead.entity.Lead.LeadStatus;
 import com.healthvia.platform.lead.repository.LeadRepository;
 import com.healthvia.platform.message.entity.Message;
 import com.healthvia.platform.message.entity.Message.DeliveryStatus;
@@ -83,9 +86,16 @@ public class ConversationSeederRunner implements CommandLineRunner {
             log.warn("No AGENT accounts found — conversations will not have an assigned agent.");
         }
 
+        // Ordered agent pool for round-robin distribution. Sorted by id so the
+        // assignment is deterministic across seeds (test runs reproduce).
+        List<Admin> agentPool = agentsById.values().stream()
+            .sorted(Comparator.comparing(Admin::getId))
+            .toList();
+
         List<Lead> targets = leadRepository.findAll().stream()
             .filter(l -> !l.isDeleted())
             .filter(l -> l.getSource() == LeadSource.WHATSAPP || l.getSource() == LeadSource.INSTAGRAM)
+            .sorted(Comparator.comparing(Lead::getId)) // stable distribution
             .toList();
 
         if (targets.isEmpty()) {
@@ -97,6 +107,7 @@ public class ConversationSeederRunner implements CommandLineRunner {
 
         int conversationsSaved = 0;
         int messagesSaved = 0;
+        int idx = 0;
 
         for (Lead lead : targets) {
             try {
@@ -105,7 +116,35 @@ public class ConversationSeederRunner implements CommandLineRunner {
 
                 // Conversation timeline starts at lead creation
                 LocalDateTime base = lead.getCreatedAt() != null ? lead.getCreatedAt() : LocalDateTime.now().minusDays(2);
-                Admin agent = lead.getAssignedAgentId() != null ? agentsById.get(lead.getAssignedAgentId()) : null;
+
+                // Force round-robin assignment so every agent sees a slice in
+                // their "assigned to me" filter, regardless of how the lead
+                // seeder originally distributed them (NEW leads were left
+                // unassigned and would never show up here otherwise).
+                Admin agent = agentPool.isEmpty() ? null : agentPool.get(idx % agentPool.size());
+                idx++;
+
+                // Back-propagate the assignment to the Lead so /api/leads filters
+                // ("assigned to me", agent stats, leaderboard) stay in sync.
+                if (agent != null) {
+                    boolean changed = false;
+                    if (lead.getAssignedAgentId() == null || !agent.getId().equals(lead.getAssignedAgentId())) {
+                        lead.setAssignedAgentId(agent.getId());
+                        lead.setAssignedAgentName(agent.getFirstName() + " " + agent.getLastName());
+                        lead.setAssignedAt(base);
+                        lead.setAssignmentMethod(AssignmentMethod.AUTO);
+                        changed = true;
+                    }
+                    if (lead.getStatus() == LeadStatus.NEW) {
+                        lead.setStatus(LeadStatus.ASSIGNED);
+                        lead.setStatusChangedAt(base);
+                        lead.setStatusChangedBy("seeder");
+                        changed = true;
+                    }
+                    if (changed) {
+                        leadRepository.save(lead);
+                    }
+                }
 
                 Conversation convo = Conversation.builder()
                     .leadId(lead.getId())
