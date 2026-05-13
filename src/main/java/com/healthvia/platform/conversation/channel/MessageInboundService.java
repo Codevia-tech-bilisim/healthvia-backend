@@ -146,20 +146,36 @@ public class MessageInboundService {
                 lead.getId(), in.getChannel());
         if (existing.isPresent()) {
             Conversation c = existing.get();
+            boolean dirty = false;
             if (c.getChannelConversationId() == null && in.getExternalThreadId() != null) {
                 c.setChannelConversationId(in.getExternalThreadId());
+                dirty = true;
+            }
+            // Backfill assignment for legacy conversations created before
+            // we propagated lead.assignedAgentId — keeps "Mine" inbox correct
+            // after the lead is auto- or manually-assigned later.
+            if (c.getAssignedAgentId() == null && lead.getAssignedAgentId() != null) {
+                c.setAssignedAgentId(lead.getAssignedAgentId());
+                dirty = true;
+            }
+            if (dirty) {
                 conversationRepository.save(c);
             }
             return c;
         }
 
-        // Brand-new conversation
+        // Brand-new conversation. Inherit the lead's assignedAgentId so the
+        // owning agent's "Mine" inbox surfaces it immediately. Without this the
+        // conversation stays unassigned and only an admin viewing "All" sees
+        // it — which is why Telegram threads were invisible to the agents
+        // they had been routed to.
         Conversation c = Conversation.builder()
             .leadId(lead.getId())
             .channel(in.getChannel())
             .channelConversationId(in.getExternalThreadId())
             .subject(in.getSubject())
             .language(in.getLanguage() != null ? in.getLanguage() : lead.getLanguage())
+            .assignedAgentId(lead.getAssignedAgentId())
             .status(Conversation.ConversationStatus.OPEN)
             .priority(Conversation.ConversationPriority.NORMAL)
             .totalMessages(0)
