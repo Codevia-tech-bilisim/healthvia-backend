@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -115,6 +116,26 @@ public class AppointmentController {
         );
 
         return ApiResponse.success(appointment, "Randevu başarıyla oluşturuldu");
+    }
+
+    @GetMapping
+    @Operation(summary = "Randevu listesi", description = "patientId / doctorId / status ile filtreli düz liste")
+    public ApiResponse<List<Appointment>> listAppointments(
+            @RequestParam(required = false) String patientId,
+            @RequestParam(required = false) String doctorId,
+            @RequestParam(required = false) AppointmentStatus status) {
+        Pageable page = PageRequest.of(0, 200);
+        List<Appointment> result;
+        if (patientId != null && !patientId.isBlank()) {
+            result = appointmentService.findByPatientId(patientId, page).getContent();
+        } else if (doctorId != null && !doctorId.isBlank()) {
+            result = appointmentService.findByDoctorId(doctorId, page).getContent();
+        } else if (status != null) {
+            result = appointmentService.findByStatus(status, page).getContent();
+        } else {
+            result = appointmentService.findAll(page).getContent();
+        }
+        return ApiResponse.success(result);
     }
 
     @GetMapping("/patient/{patientId}")

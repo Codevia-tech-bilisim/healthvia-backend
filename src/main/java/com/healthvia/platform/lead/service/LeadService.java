@@ -21,6 +21,9 @@ public interface LeadService {
     Optional<Lead> findById(String id);
     void delete(String id, String deletedBy);
     Page<Lead> findAll(Pageable pageable);
+    Page<Lead> findWithFilters(LeadStatus status, LeadSource source, LeadPriority priority,
+                               String agentId, String keyword, boolean unassignedOnly,
+                               Pageable pageable);
 
     // === DURUM YÖNETİMİ ===
     Lead changeStatus(String id, LeadStatus newStatus, String changedBy, String reason);
