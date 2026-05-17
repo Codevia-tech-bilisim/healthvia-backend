@@ -18,6 +18,9 @@ public interface TimeSlotRepository extends MongoRepository<TimeSlot, String> {
     
     List<TimeSlot> findByDoctorIdAndDateAndDeletedFalse(String doctorId, LocalDate date);
     
+    // Explicit $gte/$lte: Spring Data Mongo's derived `Between` keyword is
+    // exclusive ($gt/$lt), so slots on the range boundary dates were dropped.
+    @Query("{'doctorId': ?0, 'date': {'$gte': ?1, '$lte': ?2}, 'deleted': false}")
     List<TimeSlot> findByDoctorIdAndDateBetweenAndDeletedFalse(
         String doctorId, LocalDate startDate, LocalDate endDate);
 
