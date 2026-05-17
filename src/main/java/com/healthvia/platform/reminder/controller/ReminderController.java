@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/reminders")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','CEO','AGENT')")
 @RequiredArgsConstructor
 public class ReminderController {
 
@@ -64,6 +64,17 @@ public class ReminderController {
     }
 
     // === LİSTELEME ===
+
+    @GetMapping
+    public ApiResponse<List<ReminderDto>> list(
+            @RequestParam(required = false) String agentId,
+            @PageableDefault(size = 100) Pageable pageable) {
+        String target = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(reminderService.findByAgent(target, pageable)
+                .map(ReminderDto::fromEntityBasic).getContent());
+    }
 
     @GetMapping("/my")
     public ApiResponse<Page<ReminderDto>> getMyReminders(@PageableDefault(size = 30) Pageable pageable) {

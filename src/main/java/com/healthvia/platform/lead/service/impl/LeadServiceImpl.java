@@ -8,7 +8,11 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +38,7 @@ public class LeadServiceImpl implements LeadService {
 
     private final LeadRepository leadRepository;
     private final AdminService adminService;
+    private final MongoTemplate mongoTemplate;
 
     // === CRUD ===
 
@@ -101,6 +106,34 @@ public class LeadServiceImpl implements LeadService {
     @Transactional(readOnly = true)
     public Page<Lead> findAll(Pageable pageable) {
         return leadRepository.findAll(pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Lead> findWithFilters(LeadStatus status, LeadSource source, LeadPriority priority,
+                                      String agentId, String keyword, boolean unassignedOnly,
+                                      Pageable pageable) {
+        Criteria c = Criteria.where("deleted").ne(true);
+        if (status != null) c = c.and("status").is(status);
+        if (source != null) c = c.and("source").is(source);
+        if (priority != null) c = c.and("priority").is(priority);
+        if (unassignedOnly) {
+            c = c.and("assignedAgentId").is(null);
+        } else if (agentId != null && !agentId.isBlank()) {
+            c = c.and("assignedAgentId").is(agentId);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            String rx = ".*" + java.util.regex.Pattern.quote(keyword.trim()) + ".*";
+            c = c.orOperator(
+                    Criteria.where("firstName").regex(rx, "i"),
+                    Criteria.where("lastName").regex(rx, "i"),
+                    Criteria.where("email").regex(rx, "i"),
+                    Criteria.where("phone").regex(rx, "i"));
+        }
+        Query query = new Query(c);
+        long total = mongoTemplate.count(query, Lead.class);
+        List<Lead> content = mongoTemplate.find(query.with(pageable), Lead.class);
+        return new PageImpl<>(content, pageable, total);
     }
 
     // === DURUM YÖNETİMİ ===

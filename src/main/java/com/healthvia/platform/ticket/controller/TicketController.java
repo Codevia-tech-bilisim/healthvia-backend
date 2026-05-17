@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/tickets")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('SUPERADMIN','ADMIN','CEO','AGENT')")
 @RequiredArgsConstructor
 public class TicketController {
 
@@ -59,6 +59,26 @@ public class TicketController {
     }
 
     // === LİSTELEME ===
+
+    @GetMapping
+    public ApiResponse<Page<TicketDto>> list(
+            @RequestParam(required = false) List<TicketStatus> status,
+            @RequestParam(required = false) String assignedAgentId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        boolean hasAgent = assignedAgentId != null && !assignedAgentId.isBlank();
+        TicketStatus firstStatus = (status != null && !status.isEmpty()) ? status.get(0) : null;
+        Page<Ticket> tickets;
+        if (hasAgent && firstStatus != null) {
+            tickets = ticketService.findByAgentAndStatus(assignedAgentId, firstStatus, pageable);
+        } else if (hasAgent) {
+            tickets = ticketService.findByAgent(assignedAgentId, pageable);
+        } else if (firstStatus != null) {
+            tickets = ticketService.findByStatus(firstStatus, pageable);
+        } else {
+            tickets = ticketService.findOpenTickets(pageable);
+        }
+        return ApiResponse.success(tickets.map(TicketDto::fromEntityBasic));
+    }
 
     @GetMapping("/my")
     public ApiResponse<Page<TicketDto>> getMyTickets(@PageableDefault(size = 20) Pageable pageable) {

@@ -144,8 +144,16 @@ public class LeadController {
 
     @GetMapping
     @PreAuthorize(STAFF_ROLES)
-    public ApiResponse<Page<LeadDto>> getAll(@PageableDefault(size = 20) Pageable pageable) {
-        Page<Lead> leads = leadService.findAll(pageable);
+    public ApiResponse<Page<LeadDto>> getAll(
+            @RequestParam(required = false) LeadStatus status,
+            @RequestParam(required = false) LeadSource source,
+            @RequestParam(required = false) LeadPriority priority,
+            @RequestParam(required = false) String assignedAgentId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "false") boolean unassigned,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<Lead> leads = leadService.findWithFilters(
+                status, source, priority, assignedAgentId, keyword, unassigned, pageable);
         return ApiResponse.success(leads.map(LeadDto::fromEntityBasic));
     }
 
