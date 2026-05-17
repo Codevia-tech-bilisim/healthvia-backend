@@ -68,6 +68,7 @@ public class MessageTemplateDto {
                 .category(t.getCategory())
                 .categoryDisplayName(t.getCategory() != null ? t.getCategory().getDisplayName() : null)
                 .language(t.getLanguage())
+                .content(t.getContent())
                 .description(t.getDescription())
                 .placeholders(t.getPlaceholders())
                 .channels(t.getChannels())
