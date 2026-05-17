@@ -202,6 +202,40 @@ public class Lead extends BaseEntity {
     @Field("follow_up_count")
     private Integer followUpCount;
 
+    // === DETAYLI INTAKE / CRM ALANLARI ===
+    // Ajans dashboard'undaki "Ticket Aç" intake formundan doldurulur.
+
+    @Field("passport_or_id_no")
+    private String passportOrIdNo; // Pasaport veya TC Kimlik No
+
+    @Field("birth_date")
+    private java.time.LocalDate birthDate;
+
+    private String gender; // MALE | FEMALE | OTHER
+
+    @Field("sub_treatment")
+    private String subTreatment; // Alt hizmet / yan işlem
+
+    @Field("preferred_doctor_id")
+    private String preferredDoctorId; // Tercih edilen doktor
+
+    @Field("package_type")
+    private String packageType; // Paket tipi (ekonomi / standart / premium vb.)
+
+    @Field("wants_flight_booking")
+    private Boolean wantsFlightBooking; // Uçak rezervasyonu talebi
+
+    @Field("wants_hotel_booking")
+    private Boolean wantsHotelBooking; // Otel konaklama talebi
+
+    private Boolean vip; // VIP hasta
+
+    @Field("has_companion")
+    private Boolean hasCompanion; // Refakatçi var
+
+    @Field("is_referral")
+    private Boolean referral; // Referans hasta
+
     // === ENUMS ===
 
     public enum LeadSource {
