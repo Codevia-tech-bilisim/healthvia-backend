@@ -17,6 +17,7 @@ import com.healthvia.platform.lead.dto.LeadDto;
 import com.healthvia.platform.lead.entity.Lead;
 import com.healthvia.platform.lead.entity.Lead.*;
 import com.healthvia.platform.lead.service.LeadService;
+import com.healthvia.platform.patientcase.service.PatientCaseService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class LeadController {
             "hasAnyRole('SUPERADMIN','ADMIN','CEO','AGENT')";
 
     private final LeadService leadService;
+    private final PatientCaseService patientCaseService;
 
     // ===================================================================
     // PUBLIC / WEBHOOK — Lead oluşturma (form, WhatsApp webhook vb.)
@@ -253,10 +255,16 @@ public class LeadController {
     @PreAuthorize(STAFF_ROLES)
     public ApiResponse<LeadDto> convert(
             @PathVariable String id,
-            @RequestParam String patientId,
+            @RequestParam(required = false) String patientId,
             @RequestParam(required = false) BigDecimal conversionValue) {
         String changedBy = SecurityUtils.getCurrentUserId();
         Lead updated = leadService.markAsConverted(id, patientId, conversionValue, changedBy);
+        // Dönüşümde otomatik olarak bir PatientCase aç (idempotent — varsa onu döner).
+        try {
+            patientCaseService.createFromLead(id);
+        } catch (Exception e) {
+            log.warn("Lead {} dönüştürüldü ama case oluşturulamadı: {}", id, e.getMessage());
+        }
         return ApiResponse.success(LeadDto.fromEntity(updated), "Lead dönüştürüldü");
     }
 

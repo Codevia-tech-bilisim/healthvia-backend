@@ -26,6 +26,8 @@ import com.healthvia.platform.lead.entity.Lead.LeadSource;
 import com.healthvia.platform.lead.entity.Lead.LeadStatus;
 import com.healthvia.platform.lead.repository.LeadRepository;
 import com.healthvia.platform.lead.service.LeadService;
+import com.healthvia.platform.notification.entity.Notification;
+import com.healthvia.platform.notification.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +41,7 @@ public class LeadServiceImpl implements LeadService {
     private final LeadRepository leadRepository;
     private final AdminService adminService;
     private final MongoTemplate mongoTemplate;
+    private final NotificationService notificationService;
 
     // === CRUD ===
 
@@ -217,7 +220,17 @@ public class LeadServiceImpl implements LeadService {
         }
 
         log.info("Lead {} assigned to agent {} via {}", leadId, agentId, method);
-        return leadRepository.save(lead);
+        Lead saved = leadRepository.save(lead);
+
+        // Atanan agent'a in-app bildirim oluştur (akışı bozmamak için izole).
+        try {
+            String who = saved.getFirstName() != null ? saved.getFirstName() : "Bir müşteri";
+            notificationService.create(agentId, Notification.NotificationKind.LEAD_ASSIGNED,
+                    "Yeni lead atandı", who + " size atandı", "/inbox");
+        } catch (Exception e) {
+            log.warn("Lead atama bildirimi oluşturulamadı: {}", e.getMessage());
+        }
+        return saved;
     }
 
     @Override
