@@ -88,6 +88,19 @@ public class LeadServiceImpl implements LeadService {
         if (updated.getNotes() != null) existing.setNotes(updated.getNotes());
         if (updated.getPriority() != null) existing.setPriority(updated.getPriority());
 
+        // Detaylı intake / CRM alanları
+        if (updated.getPassportOrIdNo() != null) existing.setPassportOrIdNo(updated.getPassportOrIdNo());
+        if (updated.getBirthDate() != null) existing.setBirthDate(updated.getBirthDate());
+        if (updated.getGender() != null) existing.setGender(updated.getGender());
+        if (updated.getSubTreatment() != null) existing.setSubTreatment(updated.getSubTreatment());
+        if (updated.getPreferredDoctorId() != null) existing.setPreferredDoctorId(updated.getPreferredDoctorId());
+        if (updated.getPackageType() != null) existing.setPackageType(updated.getPackageType());
+        if (updated.getWantsFlightBooking() != null) existing.setWantsFlightBooking(updated.getWantsFlightBooking());
+        if (updated.getWantsHotelBooking() != null) existing.setWantsHotelBooking(updated.getWantsHotelBooking());
+        if (updated.getVip() != null) existing.setVip(updated.getVip());
+        if (updated.getHasCompanion() != null) existing.setHasCompanion(updated.getHasCompanion());
+        if (updated.getReferral() != null) existing.setReferral(updated.getReferral());
+
         return leadRepository.save(existing);
     }
 
